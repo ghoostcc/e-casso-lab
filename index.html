@@ -749,6 +749,8 @@ loadFinalCharacterPoints("./character.png").then(() => {
   const facePoints = new THREE.Points(faceGeo, faceMat);
   finalScene.add(facePoints);
 
+  finalParticles = { body: bodyPoints, face: facePoints };
+
   // 整體大小（兩層一起）
   bodyPoints.scale.set(0.35, 0.35, 0.35);
   facePoints.scale.set(0.35, 0.35, 0.35);
@@ -952,33 +954,27 @@ function stopFinalCharacter() {
       }
     );
 
-    onValue(ref(db,"session/color"), s=>{
-      if(!s.val()) return;
-      colorHex=s.val();
-      if(particles) particles.material.color.set(colorHex);
-      if (finalParticles) finalParticles.material.color.set(colorHex);
+   // ================= 顏色同步（COSMOS + FINAL） =================
+onValue(ref(db,"session"), s => {
+  const session = s.val();
+  if (!session || !session.color) return;
 
-    });
+  colorHex = session.color;
 
-    set(ref(db,"runtime/state"),STATES.IDLE);
+  // COSMOS 粒子
+  if (particles) {
+    particles.material.color.set(colorHex);
+  }
 
-    addEventListener("keydown", e => {
-      if (e.key === "1") set(ref(db,"runtime/state"), STATES.IDLE);
-      if (e.key === "2") set(ref(db,"runtime/state"), STATES.LOADING);
-      if (e.key === "3") set(ref(db,"runtime/state"), STATES.COSMOS);
-      if (e.key === "4") set(ref(db,"runtime/state"), STATES.FINAL);
-    });
+  // FINAL 角色（身體 + 臉）
+  if (finalParticles) {
+    finalParticles.body.material.color.set(colorHex);
+    finalParticles.face.material.color.set(colorHex);
+  }
 
-    window.addEventListener("resize", () => {
-      if (camera3D && renderer) {
-        camera3D.aspect = window.innerWidth / window.innerHeight;
-        camera3D.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-      }
-    });
+  console.log("🎨 color updated:", colorHex);
+});
 
-    console.log("Three.js 版本:", THREE.REVISION);
-    console.log("初始狀態:", STATES.IDLE);
 
 // ===== 測試：從 GAS 讀資料 → 寫入 Firebase session =====
 async function testLoadSession(id) {
@@ -1047,4 +1043,5 @@ onValue(ref(db, "control"), async (s) => {
   </script>
 </body>
 </html>
+
 
