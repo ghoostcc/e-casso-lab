@@ -998,8 +998,53 @@ async function testLoadSession(id) {
 // 🔧 暫時掛在 window，方便在 console 呼叫
 window.testLoadSession = testLoadSession;
 
+// ================= 手機控制指令監聽 =================
+onValue(ref(db, "control"), async (s) => {
+  const cmd = s.val();
+  if (!cmd || !cmd.action) return;
+
+  console.log("📱 control command:", cmd);
+
+  // 🔄 RESET：回到 IDLE
+  if (cmd.action === "RESET") {
+    await set(ref(db, "runtime/state"), STATES.IDLE);
+    await set(ref(db, "session"), null);
+    return;
+  }
+
+  // ▶ START：IDLE → LOADING → COSMOS
+  if (cmd.action === "START" && cmd.code) {
+    // 1. 進 LOADING
+    await set(ref(db, "runtime/state"), STATES.LOADING);
+
+    // 2. 讀 Sheet（你已驗證成功的 GAS）
+    const res = await fetch(
+      "https://script.google.com/macros/s/AKfycbySLmfh1u_jqJ3jMXMhu8QTb40of6DPInwxEEYL3-JkvHY1Mel5ViMvVoNeJkBElaJ1Ng/exec?code="
+      + cmd.code
+    );
+    const data = await res.json();
+
+    console.log("📄 sheet data:", data);
+
+    if (data && data.id) {
+      // 3. 寫 session
+      await set(ref(db, "session"), data);
+
+      // 4. 進 COSMOS
+      await set(ref(db, "runtime/state"), STATES.COSMOS);
+    }
+    return;
+  }
+
+  // ▶ FINAL：COSMOS → FINAL
+  if (cmd.action === "FINAL") {
+    await set(ref(db, "runtime/state"), STATES.FINAL);
+    return;
+  }
+});
 
 
   </script>
 </body>
 </html>
+
