@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>E-casso Control</title>
+  <style>
+    body {
+      background:#000;
+      color:#7ffcff;
+      font-family: system-ui, sans-serif;
+      padding:20px;
+    }
+    input, button {
+      width:100%;
+      font-size:18px;
+      padding:14px;
+      margin-bottom:12px;
+    }
+    .start { background:#7ffcff; color:#000; }
+    .final { background:#444; color:#fff; }
+    .reset { background:#222; color:#fff; }
+  </style>
+</head>
+
+<body>
+
+<h2>🎛 E-casso 控制</h2>
+
+<input id="code" placeholder="輸入 Code（308-1）">
+
+<button class="start" onclick="start()">▶ START（進 LOADING）</button>
+<button class="final" onclick="goFinal()">▶ FINAL</button>
+<button class="reset" onclick="reset()">🔄 RESET</button>
+
+<script type="module">
+import { initializeApp } from
+  "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getDatabase, ref, set } from
+  "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyAoH3O3t8SYirmcCPVDG19bVC_Nh2VrAQc",
+  authDomain: "e-casso-lab.firebaseapp.com",
+  databaseURL: "https://e-casso-lab-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "e-casso-lab",
+  storageBucket: "e-casso-lab.firebasestorage.app",
+  messagingSenderId: "338061345474",
+  appId: "1:338061345474:web:60a9b6c2a6d03e131e715b"
+});
+
+const db = getDatabase(app);
+
+window.start = async () => {
+  const code = document.getElementById("code").value.trim();
+  if (!code) {
+    alert("請輸入 code");
+    return;
+  }
+  await set(ref(db, "control"), {
+    action: "START",
+    code,
+    t: Date.now()
+  });
+};
+
+window.goFinal = async () => {
+  await set(ref(db, "control"), {
+    action: "FINAL",
+    t: Date.now()
+  });
+};
+
+window.reset = async () => {
+  await set(ref(db, "control"), {
+    action: "RESET",
+    t: Date.now()
+  });
+};
+</script>
+
+</body>
+</html>
