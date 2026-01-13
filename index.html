@@ -932,17 +932,6 @@ function stopFinalCharacter() {
   initFinalCharacter();
   startFinalCharacter();
 
-  // ⭐ FINAL 強制同步顏色（關鍵）
-onValue(ref(db,"session"), s => {
-  const session = s.val();
-  if (!session || !session.color || !finalParticles) return;
-
-  finalParticles.body.material.color.set(session.color);
-  finalParticles.face.material.color.set(session.color);
-
-  console.log("🎯 FINAL force color:", session.color);
-});
-
   // 右側文字（之後會改成 sheet 讀）
   document.getElementById("final-title").textContent =
     "GENETIC PROFILE · A01";
@@ -1054,6 +1043,7 @@ onValue(ref(db, "control"), async (s) => {
   </script>
 </body>
 </html>
+
 
 
 
