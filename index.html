@@ -714,7 +714,7 @@ loadFinalCharacterPoints("./character.png").then(() => {
   bodyGeo.setAttribute("position", new THREE.BufferAttribute(bodyPos, 3));
 
   const bodyMat = new THREE.PointsMaterial({
-    color: new THREE.Color(colorHex),
+    color: new THREE.Color("#ffffff"),
     size: 0.7,
     transparent: true,
     opacity: 0.55,
@@ -738,7 +738,7 @@ loadFinalCharacterPoints("./character.png").then(() => {
   faceGeo.setAttribute("position", new THREE.BufferAttribute(facePos, 3));
 
   const faceMat = new THREE.PointsMaterial({
-    color: new THREE.Color(colorHex),
+    color: new THREE.Color("#ffffff"),
     size: 1.0,          // ✅ 臉比較大
     transparent: true,
     opacity: 0.85,      // ✅ 臉比較亮
@@ -932,6 +932,17 @@ function stopFinalCharacter() {
   initFinalCharacter();
   startFinalCharacter();
 
+  // ⭐ FINAL 強制同步顏色（關鍵）
+onValue(ref(db,"session"), s => {
+  const session = s.val();
+  if (!session || !session.color || !finalParticles) return;
+
+  finalParticles.body.material.color.set(session.color);
+  finalParticles.face.material.color.set(session.color);
+
+  console.log("🎯 FINAL force color:", session.color);
+});
+
   // 右側文字（之後會改成 sheet 讀）
   document.getElementById("final-title").textContent =
     "GENETIC PROFILE · A01";
@@ -1043,5 +1054,6 @@ onValue(ref(db, "control"), async (s) => {
   </script>
 </body>
 </html>
+
 
 
