@@ -363,6 +363,7 @@
     let handData = null;
     let scatterTargets = [];
     let gatherPoint = null;
+    let gestureState = "WAITING"; // ✅ 新增狀態: WAITING, ACTIVATED, READY
 
     /* ================= COSMOS ================= */
     let scene, camera3D, renderer, particles;
@@ -402,26 +403,48 @@
         
         document.getElementById('fingers').innerText = fingerCount;
         
-        // ✅ 只有兩種狀態
-        if (fingerCount === 5) {
-          // 張開手掌(5根手指) = 粒子分散
-          document.getElementById('gesture').innerText = '張開手掌';
-          document.getElementById('mode').innerText = '粒子分散';
-          setScatterMode();
-        } else if (fingerCount === 0) {
-          // 握拳(0根手指) = 顯示角色
-          document.getElementById('gesture').innerText = '握拳';
-          document.getElementById('mode').innerText = '顯示角色';
-          morphStrength = 1; // 回到角色顯示
-        } else {
-          // 其他手指數 = 維持當前狀態,不改變
-          document.getElementById('gesture').innerText = `${fingerCount}根手指`;
-          document.getElementById('mode').innerText = '(維持當前狀態)';
+        // ✅ 狀態機邏輯
+        if (gestureState === "WAITING") {
+          // 第一階段：等待用戶張開手掌
+          if (fingerCount === 5) {
+            gestureState = "ACTIVATED";
+            document.getElementById('gesture').innerText = '✓ 偵測成功';
+            document.getElementById('mode').innerText = '請握拳顯示角色';
+            // 維持分散狀態
+            morphStrength = 0;
+          } else {
+            document.getElementById('gesture').innerText = '請張開手掌';
+            document.getElementById('mode').innerText = '(5根手指啟動)';
+            morphStrength = 0; // 保持分散
+          }
+        } 
+        else if (gestureState === "ACTIVATED") {
+          // 第二階段：已啟動,可以自由控制
+          if (fingerCount === 5) {
+            document.getElementById('gesture').innerText = '張開手掌';
+            document.getElementById('mode').innerText = '粒子分散';
+            setScatterMode();
+          } else if (fingerCount === 0) {
+            document.getElementById('gesture').innerText = '握拳';
+            document.getElementById('mode').innerText = '顯示角色';
+            morphStrength = 1;
+          } else {
+            document.getElementById('gesture').innerText = `${fingerCount}根手指`;
+            document.getElementById('mode').innerText = '(維持當前狀態)';
+          }
         }
       } else {
-        document.getElementById('gesture').innerText = '未偵測';
-        document.getElementById('mode').innerText = '顯示角色';
-        if (morphStrength !== 1) morphStrength = 1; // 沒偵測到手就顯示角色
+        // 沒偵測到手
+        document.getElementById('fingers').innerText = '0';
+        
+        if (gestureState === "WAITING") {
+          document.getElementById('gesture').innerText = '請張開手掌';
+          document.getElementById('mode').innerText = '(5根手指啟動)';
+          morphStrength = 0; // 保持分散
+        } else {
+          document.getElementById('gesture').innerText = '未偵測到手';
+          document.getElementById('mode').innerText = '(維持當前狀態)';
+        }
       }
     }
 
@@ -1047,6 +1070,9 @@
         initCosmos();
 
         animating = true;
+        
+        // ✅ 重置狀態機
+        gestureState = "WAITING";
         
         // ✅ 一開始就是分散狀態
         morphStrength = 0;
