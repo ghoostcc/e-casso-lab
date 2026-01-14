@@ -391,32 +391,20 @@ let finalAnimating = false;
     const video = document.getElementById("camera");
 
     function startCamera() {
-  const video = document.getElementById("camera");
-  if (!video) {
-    console.warn("camera element not ready");
-    return;
-  }
-  if (camStream) return;
-
-  navigator.mediaDevices.getUserMedia({ video:true })
-    .then(s=>{
-      camStream = s;
-      video.srcObject = s;
-    })
-    .catch(err=>{
-      console.warn("camera error:", err);
-    });
-}
-
-   function stopCamera() {
-  const video = document.getElementById("camera");
-  if (!camStream) return;
-
-  camStream.getTracks().forEach(t=>t.stop());
-  camStream = null;
-  if (video) video.srcObject = null;
-}
-
+      if (camStream) return;
+      navigator.mediaDevices.getUserMedia({ video:true }).then(s=>{
+        camStream = s;
+        video.srcObject = s;
+      }).catch(err=>{
+        console.warn("camera error:", err);
+      });
+    }
+    function stopCamera() {
+      if (!camStream) return;
+      camStream.getTracks().forEach(t=>t.stop());
+      camStream = null;
+      video.srcObject = null;
+    }
     /* ✅✅✅ 步驟 4: 加入手勢追蹤變數（在 COSMOS 變數區塊） ✅✅✅ */
     let cosmosHandStream = null;
     let cosmosHands = null;
@@ -1163,58 +1151,50 @@ function stopFinalCharacter() {
         if (scene && !rafId) startAnimateLoop();
       }
 
-else if (state === STATES.FINAL) {
+      else if (state === STATES.FINAL) {
   stopCamera();
-  stopCosmosHandTracking();
+        stopCosmosHandTracking(); // ✅ 加這行
 
+  // 停止 COSMOS 動畫
   animating = false;
   if (rafId) {
     cancelAnimationFrame(rafId);
     rafId = null;
   }
 
+  // 啟動 FINAL 中央角色
   initFinalCharacter();
   startFinalCharacter();
 
-  startDNA();
-  startGrid();
-  startHeartbeat();
+  // 右側文字（之後會改成 sheet 讀）
+  document.getElementById("final-title").textContent =
+    "GENETIC PROFILE · A01";
+
+  document.getElementById("final-text").textContent =
+    "Your biological resonance indicates high adaptability and strong cosmic synchronization.\nFurther evolution recommended.";
 }
+
 
           // ★ 啟動左邊三格動畫
   startDNA();
   startGrid();
   startHeartbeat();
 
- onValue(ref(db, "session"), snap => {
-  const d = snap.val();
-  if (!d) return;
+        document.getElementById("final-title").textContent =
+          "GENETIC PROFILE · A01";
 
-  // ===== 文字 =====
-  if (d.title) {
-    const titleEl = document.getElementById("final-title");
-    if (titleEl) titleEl.textContent = d.title;
-  }
+        document.getElementById("final-text").textContent =
+          "Your biological resonance indicates high adaptability and strong cosmic synchronization.\nFurther evolution recommended.";
+      }
+    );
 
-  if (d.conclusion) {
-    const textEl = document.getElementById("final-text");
-    if (textEl) textEl.textContent = d.conclusion;
-  }
+    onValue(ref(db,"session/color"), s=>{
+      if(!s.val()) return;
+      colorHex=s.val();
+      if(particles) particles.material.color.set(colorHex);
+      if (finalParticles) finalParticles.material.color.set(colorHex);
 
-  // ===== 顏色 =====
-  if (d.color) {
-    colorHex = d.color;
-
-    if (particles) {
-      particles.material.color.set(colorHex);
-    }
-
-    if (finalParticles) {
-      finalParticles.material.color.set(colorHex);
-    }
-  }
-});
-
+    });
 
     set(ref(db,"runtime/state"),STATES.IDLE);
 
@@ -1259,5 +1239,4 @@ window.testLoadSession = testLoadSession;
   </script>
 </body>
 </html>
-
 
