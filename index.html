@@ -483,6 +483,7 @@ let finalAnimating = false;
       if (rafId) cancelAnimationFrame(rafId);
 
       const loop = () => {
+        console.log("morphStrength:", morphStrength);
         if (!animating || !particles) return;
 
         const p = particles.geometry.attributes.position.array;
@@ -929,10 +930,6 @@ function stopFinalCharacter() {
   animating = true;
   morphStrength = 0;
 
-  setTimeout(() => {
-    morphStrength = 1;
-  }, 1000);
-
   if (scene && !rafId) startAnimateLoop();
 }
 
@@ -1080,11 +1077,11 @@ function initHands(videoEl) {
 
 hands.onResults(results => {
   if (results.multiHandLandmarks?.length) {
-    handActive = true;
-    morphStrength = 1;   // ✅ 有手 → 聚合
+    morphStrength = 1;
+    console.log("✊ hand → morph 1");
   } else {
-    handActive = false;
-    morphStrength = 0;   // ✅ 沒手 → 發散
+    morphStrength = 0;
+    console.log("✋ no hand → morph 0");
   }
 });
 
@@ -1118,6 +1115,7 @@ function stopHands() {
   </script>
 </body>
 </html>
+
 
 
 
