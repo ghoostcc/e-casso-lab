@@ -751,6 +751,12 @@ loadFinalCharacterPoints("./character.png").then(() => {
 
   finalParticles = { body: bodyPoints, face: facePoints };
 
+  // ✅ 關鍵：把 FINAL 粒子存起來，讓外部可以改顏色
+finalParticles = {
+  body: bodyPoints,
+  face: facePoints
+};
+
   // 整體大小（兩層一起）
   bodyPoints.scale.set(0.35, 0.35, 0.35);
   facePoints.scale.set(0.35, 0.35, 0.35);
@@ -1043,6 +1049,7 @@ onValue(ref(db, "control"), async (s) => {
   </script>
 </body>
 </html>
+
 
 
 
