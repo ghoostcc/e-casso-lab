@@ -257,6 +257,8 @@
 </head>
 
 <body>
+<!-- ✅ Hand tracking 專用（隱形），不要用 IDLE 的 #camera -->
+<video id="hand-video" autoplay playsinline muted style="display:none;"></video>
 
   <!-- IDLE -->
   <div id="idle" class="screen active">
@@ -342,24 +344,38 @@ let finalRAF = null;
 let finalAnimating = false;
 
     /* ================= 鏡頭 ================= */
-    let camStream = null;
-    const video = document.getElementById("camera");
+let camStream = null;
 
-    function startCamera() {
-      if (camStream) return;
-      navigator.mediaDevices.getUserMedia({ video:true }).then(s=>{
-        camStream = s;
-        video.srcObject = s;
-      }).catch(err=>{
-        console.warn("camera error:", err);
-      });
-    }
-    function stopCamera() {
-      if (!camStream) return;
-      camStream.getTracks().forEach(t=>t.stop());
-      camStream = null;
-      video.srcObject = null;
-    }
+// ✅ IDLE 掃描框用
+const idleVideo = document.getElementById("camera");
+
+// ✅ COSMOS 手勢用（隱形）
+const handVideo = document.getElementById("hand-video");
+
+   function startCamera(targetVideoEl) {
+  if (camStream) {
+    // 已經有 stream，只要換顯示目標
+    if (targetVideoEl) targetVideoEl.srcObject = camStream;
+    return;
+  }
+
+  navigator.mediaDevices.getUserMedia({ video: true }).then(s => {
+    camStream = s;
+    if (targetVideoEl) targetVideoEl.srcObject = s;
+  }).catch(err => {
+    console.warn("camera error:", err);
+  });
+}
+
+function stopCamera() {
+  if (!camStream) return;
+  camStream.getTracks().forEach(t => t.stop());
+  camStream = null;
+
+  // ✅ 兩支都清掉，避免殘留
+  if (idleVideo) idleVideo.srcObject = null;
+  if (handVideo) handVideo.srcObject = null;
+}
 
     /* ================= COSMOS ================= */
     let scene, camera3D, renderer, particles;
@@ -831,8 +847,6 @@ if (brightness > 165 && alpha > 60) {
     });
   }
 }
-
-
           // 🧍 身體（暗色）— 一定要抽
           else {
             if (Math.random() < 0.22) {
@@ -846,9 +860,6 @@ if (brightness > 165 && alpha > 60) {
     };
   });
 }
-
-
-
 // FINAL 動畫（只做微呼吸）
 function startFinalCharacter() {
   stopFinalCharacter();
@@ -880,8 +891,6 @@ function stopFinalCharacter() {
     finalRAF = null;
   }
 }
-
-
     function switchScreen(state) {
       document.querySelectorAll(".screen").forEach(el=>{
         el.classList.remove("active");
@@ -899,16 +908,24 @@ function stopFinalCharacter() {
       if (!state) return;
       switchScreen(state);
 
-      if (state === STATES.IDLE) {
-        stopFinalCharacter();
-        startCamera();
-        animating = false;
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = null;
-      }
+   if (state === STATES.IDLE) {
+  stopFinalCharacter();
+
+  // ✅ IDLE：顯示在掃描框（#camera）
+  startCamera(idleVideo);
+
+  // ✅ IDLE 不做手勢
+  stopHands();
+
+  animating = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = null;
+}
+
 
       else if (state === STATES.LOADING) {
         stopFinalCharacter();
+        stopHands();
         stopCamera();
         startLoadingSequence();
         animating = false;
@@ -916,14 +933,14 @@ function stopFinalCharacter() {
         rafId = null;
       }
 
-     else if (state === STATES.COSMOS) {
+   else if (state === STATES.COSMOS) {
   stopFinalCharacter();
 
-  // ✅ 給 MediaPipe 用
-  startCamera();
+  // ✅ COSMOS：把相機給 handVideo（隱形的）
+  startCamera(handVideo);
 
-  // ✅ 啟動手勢偵測（關鍵）
-  initHands(video);
+  // ✅ 啟動手勢偵測：用 handVideo（不要用 #camera）
+  initHands(handVideo);
 
   initCosmos();
 
@@ -933,9 +950,9 @@ function stopFinalCharacter() {
   if (scene && !rafId) startAnimateLoop();
 }
 
-      else if (state === STATES.FINAL) {
-  stopCamera();
+  else if (state === STATES.FINAL) {
   stopHands(); // ← 就這一行
+  stopCamera();
 
   // 停止 COSMOS 動畫
   animating = false;
@@ -1086,15 +1103,24 @@ hands.onResults(results => {
 });
 
 
-  mpCamera = new Camera(videoEl, {
-    onFrame: async () => {
-      await hands.send({ image: videoEl });
-    },
-    width: 640,
-    height: 480
-  });
+ // ✅ 不用 Camera() 再開一次鏡頭，直接用 requestAnimationFrame 送圖
+let handsRAF = null;
 
-  mpCamera.start();
+function startHandsLoop(videoEl) {
+  const loop = async () => {
+    if (!hands || !videoEl || videoEl.readyState < 2) {
+      handsRAF = requestAnimationFrame(loop);
+      return;
+    }
+    await hands.send({ image: videoEl });
+    handsRAF = requestAnimationFrame(loop);
+  };
+  handsRAF = requestAnimationFrame(loop);
+}
+
+// 在 initHands 最後呼叫
+startHandsLoop(videoEl);
+
 }
 function stopHands() {
   if (mpCamera) {
@@ -1106,7 +1132,12 @@ function stopHands() {
     hands.close();
     hands = null;
   }
-
+// ✅ 停止 RAF loop
+  if (typeof handsRAF !== "undefined" && handsRAF) {
+    cancelAnimationFrame(handsRAF);
+    handsRAF = null;
+  }
+  
   handActive = false;
   console.log("🛑 Hands stopped");
 }
@@ -1115,3 +1146,4 @@ function stopHands() {
   </script>
 </body>
 </html>
+
