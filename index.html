@@ -938,6 +938,7 @@ function stopFinalCharacter() {
 
       else if (state === STATES.FINAL) {
   stopCamera();
+  stopHands(); // ← 就這一行
 
   // 停止 COSMOS 動畫
   animating = false;
@@ -1098,11 +1099,26 @@ function initHands(videoEl) {
 
   mpCamera.start();
 }
+function stopHands() {
+  if (mpCamera) {
+    mpCamera.stop();
+    mpCamera = null;
+  }
+
+  if (hands) {
+    hands.close();
+    hands = null;
+  }
+
+  handActive = false;
+  console.log("🛑 Hands stopped");
+}
 
 
   </script>
 </body>
 </html>
+
 
 
 
