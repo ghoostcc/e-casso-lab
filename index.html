@@ -261,13 +261,10 @@
   <!-- IDLE -->
   <div id="idle" class="screen active">
     <div id="scan-overlay">
-      <video id="idleCamera" autoplay muted playsinline></video>
+      <video id="camera" autoplay muted playsinline></video>
       <div class="scan-line"></div>
     </div>
   </div>
-
-  <!-- COSMOS 專用的隱藏 video（給 MediaPipe 用） -->
-  <video id="cosmosCamera" style="display:none;" autoplay muted playsinline></video>
 
   <!-- LOADING -->
   <div id="loading" class="screen">
@@ -345,43 +342,23 @@ let finalRAF = null;
 let finalAnimating = false;
 
     /* ================= 鏡頭 ================= */
-    let idleCamStream = null;
-    let cosmosCamStream = null;
-    const idleVideo = document.getElementById("idleCamera");
-    const cosmosVideo = document.getElementById("cosmosCamera");
+    let camStream = null;
+    const video = document.getElementById("camera");
 
-    function startIdleCamera() {
-      if (idleCamStream) return;
+    function startCamera() {
+      if (camStream) return;
       navigator.mediaDevices.getUserMedia({ video:true }).then(s=>{
-        idleCamStream = s;
-        idleVideo.srcObject = s;
+        camStream = s;
+        video.srcObject = s;
       }).catch(err=>{
-        console.warn("idle camera error:", err);
+        console.warn("camera error:", err);
       });
     }
-
-    function stopIdleCamera() {
-      if (!idleCamStream) return;
-      idleCamStream.getTracks().forEach(t=>t.stop());
-      idleCamStream = null;
-      idleVideo.srcObject = null;
-    }
-
-    function startCosmosCamera() {
-      if (cosmosCamStream) return;
-      navigator.mediaDevices.getUserMedia({ video:true }).then(s=>{
-        cosmosCamStream = s;
-        cosmosVideo.srcObject = s;
-      }).catch(err=>{
-        console.warn("cosmos camera error:", err);
-      });
-    }
-
-    function stopCosmosCamera() {
-      if (!cosmosCamStream) return;
-      cosmosCamStream.getTracks().forEach(t=>t.stop());
-      cosmosCamStream = null;
-      cosmosVideo.srcObject = null;
+    function stopCamera() {
+      if (!camStream) return;
+      camStream.getTracks().forEach(t=>t.stop());
+      camStream = null;
+      video.srcObject = null;
     }
 
     /* ================= COSMOS ================= */
@@ -506,6 +483,7 @@ let finalAnimating = false;
       if (rafId) cancelAnimationFrame(rafId);
 
       const loop = () => {
+        console.log("morphStrength:", morphStrength);
         if (!animating || !particles) return;
 
         const p = particles.geometry.attributes.position.array;
@@ -923,9 +901,7 @@ function stopFinalCharacter() {
 
       if (state === STATES.IDLE) {
         stopFinalCharacter();
-        stopHands();
-        stopCosmosCamera();
-        startIdleCamera();
+        startCamera();
         animating = false;
         if (rafId) cancelAnimationFrame(rafId);
         rafId = null;
@@ -933,9 +909,7 @@ function stopFinalCharacter() {
 
       else if (state === STATES.LOADING) {
         stopFinalCharacter();
-        stopHands();
-        stopIdleCamera();
-        stopCosmosCamera();
+        stopCamera();
         startLoadingSequence();
         animating = false;
         if (rafId) cancelAnimationFrame(rafId);
@@ -944,13 +918,12 @@ function stopFinalCharacter() {
 
      else if (state === STATES.COSMOS) {
   stopFinalCharacter();
-  stopIdleCamera();
 
-  // ✅ 啟動 COSMOS 專用鏡頭
-  startCosmosCamera();
+  // ✅ 給 MediaPipe 用
+  startCamera();
 
-  // ✅ 啟動手勢偵測（使用 cosmosVideo）
-  initHands(cosmosVideo);
+  // ✅ 啟動手勢偵測（關鍵）
+  initHands(video);
 
   initCosmos();
 
@@ -961,9 +934,8 @@ function stopFinalCharacter() {
 }
 
       else if (state === STATES.FINAL) {
-  stopIdleCamera();
-  stopCosmosCamera();
-  stopHands();
+  stopCamera();
+  stopHands(); // ← 就這一行
 
   // 停止 COSMOS 動畫
   animating = false;
@@ -982,13 +954,21 @@ function stopFinalCharacter() {
 
   document.getElementById("final-text").textContent =
     "Your biological resonance indicates high adaptability and strong cosmic synchronization.\nFurther evolution recommended.";
+}
 
-  // ★ 啟動左邊三格動畫
+
+          // ★ 啟動左邊三格動畫
   startDNA();
   startGrid();
   startHeartbeat();
-}
-    });
+
+        document.getElementById("final-title").textContent =
+          "GENETIC PROFILE · A01";
+
+        document.getElementById("final-text").textContent =
+          "Your biological resonance indicates high adaptability and strong cosmic synchronization.\nFurther evolution recommended.";
+      }
+    );
 
    // ================= 顏色同步（COSMOS + FINAL） =================
 onValue(ref(db,"session"), s => {
