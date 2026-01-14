@@ -1047,13 +1047,24 @@
         initCosmos();
 
         animating = true;
+        
+        // ✅ 一開始就是分散狀態
         morphStrength = 0;
+        
+        // ✅ 先產生分散目標
+        const w = window.innerWidth * 1.2;
+        const h = window.innerHeight * 1.2;
+        const d = 800;
+        scatterTargets = [];
+        for (let i = 0; i < 24000; i++) {
+          scatterTargets.push({
+            x: (Math.random() - 0.5) * w,
+            y: (Math.random() - 0.5) * h,
+            z: (Math.random() - 0.5) * d
+          });
+        }
 
         startCosmosHandTracking();
-
-        setTimeout(() => {
-          morphStrength = 1;
-        }, 1000);
 
         if (scene && !rafId) startAnimateLoop();
       }
