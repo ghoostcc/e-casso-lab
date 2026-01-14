@@ -6,10 +6,10 @@
 
   <!-- Three.js（全域） -->
   <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
-  <!-- ✅✅✅ 步驟 1: 加入 MediaPipe CDN（在 </head> 之前） ✅✅✅ -->
+  <!-- MediaPipe CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-  <!-- ✅✅✅ 步驟 1 結束 ✅✅✅ -->
+
   <style>
     html, body {
       margin: 0;
@@ -21,18 +21,15 @@
       font-family: sans-serif;
     }
 
-    /* ✅ 疊層：確保畫面切換不會互相蓋住 */
     #idle    { z-index: 1; }
     #loading { z-index: 2; }
-    #cosmos  { z-index: 3; }  /* COSMOS */
-    #final   { z-index: 4; }  /* ✅ FINAL 要在最上 */
+    #cosmos  { z-index: 3; }
+    #final   { z-index: 4; }
 
     .screen {
       display: none;
       position: fixed;
       inset: 0;
-
-      /* ✅ 其他畫面預設置中（FINAL 會自己覆蓋） */
       align-items: center;
       justify-content: center;
     }
@@ -76,12 +73,7 @@
       left: 0;
       width: 100%;
       height: 30%;
-      background: linear-gradient(
-        to bottom,
-        transparent,
-        rgba(255,255,255,0.7),
-        transparent
-      );
+      background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.7), transparent);
       animation: scanMove 2.5s linear infinite;
     }
 
@@ -108,26 +100,22 @@
     .progress-fill {
       height: 100%;
       width: 0%;
-      background: linear-gradient(
-        90deg,
-        transparent,
-        #7ffcff,
-        transparent
-      );
+      background: linear-gradient(90deg, transparent, #7ffcff, transparent);
       transition: width 0.6s ease;
     }
+
     /* ================= COSMOS ================= */
-    /* ✅ COSMOS：讓 canvas 充滿整個畫面 */
     #cosmos.active {
       display: block;
       background: black;
     }
+
     #cosmos canvas {
       width: 100% !important;
       height: 100% !important;
       display: block;
     }
-  /* ✅✅✅ 步驟 2: 加入 COSMOS 手勢 UI 樣式 ✅✅✅ */
+
     #cosmos-hud {
       position: fixed;
       top: 20px;
@@ -141,9 +129,11 @@
       font-family: monospace;
       display: none;
     }
+
     #cosmos.active #cosmos-hud {
       display: block;
     }
+
     .hud-value {
       font-weight: bold;
       color: #7ffcff;
@@ -161,11 +151,11 @@
       z-index: 10;
       display: none;
     }
+
     #cosmos.active #cosmos-camera {
       display: block;
     }
-    /* ✅✅✅ 步驟 2 結束 ✅✅✅ */
-    
+
     #debug {
       position: fixed;
       bottom: 10px;
@@ -176,113 +166,87 @@
     }
 
     /* ================= FINAL ================= */
-    #final{
-      /* ✅ 背景 HUD */
+    #final {
       background: url("./final_bg.png") center center / contain no-repeat;
       color: #7ffcff;
-
-      /* ✅ 讓 absolute 子元素以 FINAL 為基準 */
       position: fixed;
       inset: 0;
       overflow: hidden;
     }
 
-    /* ✅ 斷根：FINAL 不能被 .screen.active 的 flex 影響 */
-    #final.active{
+    #final.active {
       display: block !important;
     }
 
-    /* ✅ 讓 FINAL 不吃 screen 的置中屬性 */
-    #final{
+    #final {
       align-items: unset !important;
       justify-content: unset !important;
     }
 
-/* 左側 BIO 區（這個容器只當定位參考，不要再用 flex） */
-.final-left{
-  position: absolute;
-  inset: 0;              /* 讓它跟 final 一樣大，方便用 top/left 對齊 */
-  pointer-events: none;
-}
+    .final-left {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
 
-/* 三個洞：共同設定 */
-.bio-slot{
-  position: absolute;
-  overflow: hidden;      /* 保證動畫不會溢出框外 */
-}
+    .bio-slot {
+      position: absolute;
+      overflow: hidden;
+    }
 
-/* Canvas 填滿洞 */
-.bio-slot canvas{
-  width: 100%;
-  height: 100%;
-  display: block;
-}
+    .bio-slot canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
 
-/* ========= 三個洞的位置（你只要調這裡） ========= */
-/* 上框：DNA */
-.bio-slot-1{
-  left: 350px;     /* ✅ 左右位置微調 */
-  top: 250px;     /* ✅ 上下位置微調 */
-  width: 320px;   /* ✅ 寬度微調 */
-  height: 150px;  /* ✅ 高度微調 */
-}
+    .bio-slot-1 {
+      left: 350px;
+      top: 250px;
+      width: 320px;
+      height: 150px;
+    }
 
-/* 中框：Grid */
-.bio-slot-2{
-  left: 350px;
-  top: 430px;
-  width: 320px;
-  height: 200px;
-}
+    .bio-slot-2 {
+      left: 350px;
+      top: 430px;
+      width: 320px;
+      height: 200px;
+    }
 
-/* 下框：Heartbeat */
-.bio-slot-3{
-  left: 330px;
-  top: 688px;
-  width: 260px;
-  height: 120px;
-}
+    .bio-slot-3 {
+      left: 330px;
+      top: 688px;
+      width: 260px;
+      height: 120px;
+    }
 
-    /* 中央保留給 COSMOS（不用放內容） */
-    /* FINAL 中央角色（Canvas 粒子） */
-.final-center {
-  position: absolute;
-  left: 22%;
-  top: 0;
-  width: 52%;
-  height: 100%;
-  pointer-events: none;
-}
+    .final-center {
+      position: absolute;
+      left: 22%;
+      top: 0;
+      width: 52%;
+      height: 100%;
+      pointer-events: none;
+    }
 
-#finalCharacter {
-  position: absolute;
-  left: 50%;
-  top: 52%;
-  transform: translate(-50%, -50%);
-  width: 320px;
-  height: 420px;
-}
-
-
-    /* ✅ 右側 Conclusion：貼進右側框 */
-    .final-right{
+    .final-right {
       position: absolute !important;
       top: 180px;
       right: 289px;
       width: 380px;
-
       color: #7ffcff;
       font-family: monospace;
       text-shadow: 0 0 8px rgba(0,255,255,0.25);
     }
 
-    .final-right h2{
+    .final-right h2 {
       margin: 0;
       font-size: 20px;
       letter-spacing: 2px;
     }
 
-    .final-right p{
+    .final-right p {
       margin-top: 18px;
       font-size: 14px;
       line-height: 1.7;
@@ -312,43 +276,29 @@
     </div>
   </div>
 
-  <!-- ✅✅✅ 步驟 3: 在 COSMOS 加入手勢 UI 元素 ✅✅✅ -->
+  <!-- COSMOS -->
   <div id="cosmos" class="screen">
-    <!-- 手勢 HUD -->
     <div id="cosmos-hud">
       <div>手勢: <span id="gesture" class="hud-value">等待中...</span></div>
       <div>手指數: <span id="fingers" class="hud-value">0</span></div>
       <div>模式: <span id="mode" class="hud-value">角色顯示</span></div>
     </div>
-    <!-- 手勢攝影機（小視窗） -->
     <video id="cosmos-camera" autoplay muted playsinline></video>
   </div>
-  <!-- ✅✅✅ 步驟 3 結束 ✅✅✅ -->
 
-<!-- FINAL -->
-<div id="final" class="screen">
-
-  <!-- 左側 BIO 三格動畫 -->
-  <div class="final-left">
-  <div class="bio-slot bio-slot-1"><canvas id="dnaCanvas"></canvas></div>
-  <div class="bio-slot bio-slot-2"><canvas id="gridCanvas"></canvas></div>
-  <div class="bio-slot bio-slot-3"><canvas id="heartCanvas"></canvas></div>
-</div>
-
-
-  <!-- 中央（COSMOS 用） -->
-  <div class="final-center">
-</div>
-
-
-  <!-- 右側 Conclusion -->
-  <div class="final-right">
-    <h2 id="final-title">GENETIC ANALYSIS</h2>
-    <p id="final-text">Awaiting biological conclusion...</p>
+  <!-- FINAL -->
+  <div id="final" class="screen">
+    <div class="final-left">
+      <div class="bio-slot bio-slot-1"><canvas id="dnaCanvas"></canvas></div>
+      <div class="bio-slot bio-slot-2"><canvas id="gridCanvas"></canvas></div>
+      <div class="bio-slot bio-slot-3"><canvas id="heartCanvas"></canvas></div>
+    </div>
+    <div class="final-center"></div>
+    <div class="final-right">
+      <h2 id="final-title">GENETIC ANALYSIS</h2>
+      <p id="final-text">Awaiting biological conclusion...</p>
+    </div>
   </div>
-
-</div>
-
 
   <div id="debug">state: —</div>
 
@@ -377,14 +327,13 @@
     };
 
     /* ================= FINAL CHARACTER (globals) ================= */
-let finalScene = null;
-let finalCamera = null;
-let finalRenderer = null;
-let finalParticles = null;
-let finalTargets = [];
-
-let finalRAF = null;
-let finalAnimating = false;
+    let finalScene = null;
+    let finalCamera = null;
+    let finalRenderer = null;
+    let finalParticles = null;
+    let finalTargets = [];
+    let finalRAF = null;
+    let finalAnimating = false;
 
     /* ================= 鏡頭 ================= */
     let camStream = null;
@@ -399,21 +348,22 @@ let finalAnimating = false;
         console.warn("camera error:", err);
       });
     }
+
     function stopCamera() {
       if (!camStream) return;
       camStream.getTracks().forEach(t=>t.stop());
       camStream = null;
       video.srcObject = null;
     }
-    /* ✅✅✅ 步驟 4: 加入手勢追蹤變數（在 COSMOS 變數區塊） ✅✅✅ */
+
+    /* ================= 手勢追蹤變數 ================= */
     let cosmosHandStream = null;
     let cosmosHands = null;
     let cosmosCamera = null;
     let handData = null;
     let scatterTargets = [];
     let gatherPoint = null;
-    /* ✅✅✅ 步驟 4 結束 ✅✅✅ */
-    
+
     /* ================= COSMOS ================= */
     let scene, camera3D, renderer, particles;
     let animating = false;
@@ -422,8 +372,7 @@ let finalAnimating = false;
     let morphStrength = 0;
     let rafId = null;
 
-     /* ✅✅✅ 步驟 5: 加入手勢偵測函數（在 COSMOS 區塊後面） ✅✅✅ */
-    // 手勢偵測核心
+    /* ================= 手勢偵測函數 ================= */
     function countFingers(landmarks) {
       let count = 0;
       
@@ -443,7 +392,6 @@ let finalAnimating = false;
       return count;
     }
 
-    // 手勢結果處理
     function onHandResults(results) {
       handData = null;
       
@@ -474,7 +422,6 @@ let finalAnimating = false;
       }
     }
 
-    // 粒子分散模式
     function setScatterMode() {
       const w = window.innerWidth * 1.2;
       const h = window.innerHeight * 1.2;
@@ -493,7 +440,6 @@ let finalAnimating = false;
       morphStrength = 0;
     }
 
-    // 粒子聚合模式
     function setGatherMode() {
       if (!handData || !particles) return;
       
@@ -509,11 +455,15 @@ let finalAnimating = false;
       gatherPoint = { x: centerX, y: centerY, z: 0 };
     }
 
-    // 啟動手勢追蹤
     function startCosmosHandTracking() {
       if (cosmosHands) return;
       
       const videoElement = document.getElementById('cosmos-camera');
+      
+      if (!videoElement) {
+        console.error("❌ cosmos-camera 元素不存在");
+        return;
+      }
       
       navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => {
@@ -549,7 +499,6 @@ let finalAnimating = false;
       console.log("✅ COSMOS 手勢追蹤已啟動");
     }
 
-    // 停止手勢追蹤
     function stopCosmosHandTracking() {
       if (cosmosHandStream) {
         cosmosHandStream.getTracks().forEach(t => t.stop());
@@ -561,11 +510,12 @@ let finalAnimating = false;
       }
       cosmosHands = null;
       handData = null;
-      document.getElementById('cosmos-camera').srcObject = null;
+      const videoElement = document.getElementById('cosmos-camera');
+      if (videoElement) videoElement.srcObject = null;
       console.log("❌ COSMOS 手勢追蹤已停止");
     }
-    /* ✅✅✅ 步驟 5 結束 ✅✅✅ */
-    
+
+    /* ================= COSMOS 初始化 ================= */
     function initCosmos() {
       if (scene) return;
 
@@ -581,10 +531,12 @@ let finalAnimating = false;
       renderer.setClearColor(0x000000, 1);
 
       const cosmosEl = document.getElementById("cosmos");
-      cosmosEl.innerHTML = "";
-      cosmosEl.appendChild(renderer.domElement);
-
-      renderer.render(scene, camera3D);
+      
+      // ✅ 修正：保留 HUD 和攝影機,只插入 canvas
+      const existingCanvas = cosmosEl.querySelector('canvas');
+      if (existingCanvas) existingCanvas.remove();
+      
+      cosmosEl.insertBefore(renderer.domElement, cosmosEl.firstChild);
 
       const count = 24000;
       const pos = new Float32Array(count*3);
@@ -676,7 +628,6 @@ let finalAnimating = false;
       });
     }
 
-   /* ✅✅✅ 步驟 6: 修改動畫循環（替換原本的 startAnimateLoop）✅✅✅ */
     function startAnimateLoop() {
       if (rafId) cancelAnimationFrame(rafId);
 
@@ -686,7 +637,6 @@ let finalAnimating = false;
         const p = particles.geometry.attributes.position.array;
         const time = Date.now() * 0.0003;
 
-        // 握拳 = 聚合到手掌
         if (morphStrength === -1 && gatherPoint) {
           for (let i = 0; i * 3 < p.length; i++) {
             const idx = i * 3;
@@ -701,7 +651,6 @@ let finalAnimating = false;
             p[idx + 2] += (tz - p[idx + 2]) * 0.12;
           }
         }
-        // 張開手掌 = 分散
         else if (morphStrength === 0 && scatterTargets.length > 0) {
           for (let i = 0; i * 3 < p.length; i++) {
             const idx = i * 3;
@@ -712,7 +661,6 @@ let finalAnimating = false;
             p[idx + 2] += (t.z - p[idx + 2]) * 0.08;
           }
         }
-        // 顯示角色（原本的邏輯）
         else if (morphStrength === 1 && characterTargets.length > 0) {
           for (let i = 0; i < characterTargets.length && i * 3 < p.length; i++) {
             const idx = i * 3;
@@ -741,122 +689,121 @@ let finalAnimating = false;
 
       rafId = requestAnimationFrame(loop);
     }
-    /* ✅✅✅ 步驟 6 結束 ✅✅✅ */
 
-
+    /* ================= FINAL 動畫 ================= */
     function startDNA(){
-  const c = document.getElementById("dnaCanvas");
-  if (!c) return;
-  const ctx = c.getContext("2d");
+      const c = document.getElementById("dnaCanvas");
+      if (!c) return;
+      const ctx = c.getContext("2d");
 
-  function resize(){
-    c.width = c.clientWidth;
-    c.height = c.clientHeight;
-  }
-  resize();
-  window.addEventListener("resize", resize);
+      function resize(){
+        c.width = c.clientWidth;
+        c.height = c.clientHeight;
+      }
+      resize();
+      window.addEventListener("resize", resize);
 
-  let t = 0;
-  function loop(){
-    ctx.clearRect(0,0,c.width,c.height);
-    ctx.strokeStyle = "#7ffcff";
-    ctx.lineWidth = 1;
+      let t = 0;
+      function loop(){
+        ctx.clearRect(0,0,c.width,c.height);
+        ctx.strokeStyle = "#7ffcff";
+        ctx.lineWidth = 1;
 
-    for(let y=0; y<c.height; y+=3){
-      const wave = Math.sin(y*0.05 + t) * 30;
-      ctx.beginPath();
-      ctx.moveTo(c.width/2 + wave, y);
-      ctx.lineTo(c.width/2 - wave, y);
-      ctx.stroke();
+        for(let y=0; y<c.height; y+=3){
+          const wave = Math.sin(y*0.05 + t) * 30;
+          ctx.beginPath();
+          ctx.moveTo(c.width/2 + wave, y);
+          ctx.lineTo(c.width/2 - wave, y);
+          ctx.stroke();
+        }
+
+        t += 0.03;
+        requestAnimationFrame(loop);
+      }
+      loop();
     }
 
-    t += 0.03;
-    requestAnimationFrame(loop);
-  }
-  loop();
-}
+    function startGrid(){
+      const c = document.getElementById("gridCanvas");
+      if (!c) return;
+      const ctx = c.getContext("2d");
 
-function startGrid(){
-  const c = document.getElementById("gridCanvas");
-  if (!c) return;
-  const ctx = c.getContext("2d");
+      function resize(){
+        c.width = c.clientWidth;
+        c.height = c.clientHeight;
+      }
+      resize();
+      window.addEventListener("resize", resize);
 
-  function resize(){
-    c.width = c.clientWidth;
-    c.height = c.clientHeight;
-  }
-  resize();
-  window.addEventListener("resize", resize);
+      const dots = Array.from({length:100},()=>({
+        x: Math.random()*c.width,
+        y: Math.random()*c.height,
+        a: Math.random()
+      }));
 
-  const dots = Array.from({length:100},()=>({
-    x: Math.random()*c.width,
-    y: Math.random()*c.height,
-    a: Math.random()
-  }));
+      function loop(){
+        ctx.clearRect(0,0,c.width,c.height);
 
-  function loop(){
-    ctx.clearRect(0,0,c.width,c.height);
+        ctx.strokeStyle = "rgba(127,252,255,0.15)";
+        for(let x=0;x<c.width;x+=20){
+          ctx.beginPath();
+          ctx.moveTo(x,0);
+          ctx.lineTo(x,c.height);
+          ctx.stroke();
+        }
+        for(let y=0;y<c.height;y+=20){
+          ctx.beginPath();
+          ctx.moveTo(0,y);
+          ctx.lineTo(c.width,y);
+          ctx.stroke();
+        }
 
-    ctx.strokeStyle = "rgba(127,252,255,0.15)";
-    for(let x=0;x<c.width;x+=20){
-      ctx.beginPath();
-      ctx.moveTo(x,0);
-      ctx.lineTo(x,c.height);
-      ctx.stroke();
-    }
-    for(let y=0;y<c.height;y+=20){
-      ctx.beginPath();
-      ctx.moveTo(0,y);
-      ctx.lineTo(c.width,y);
-      ctx.stroke();
-    }
+        dots.forEach(d=>{
+          d.a += (Math.random()-0.5)*0.1;
+          d.a = Math.max(0,Math.min(1,d.a));
+          ctx.fillStyle = `rgba(127,252,255,${d.a})`;
+          ctx.fillRect(d.x,d.y,2,2);
+        });
 
-    dots.forEach(d=>{
-      d.a += (Math.random()-0.5)*0.1;
-      d.a = Math.max(0,Math.min(1,d.a));
-      ctx.fillStyle = `rgba(127,252,255,${d.a})`;
-      ctx.fillRect(d.x,d.y,2,2);
-    });
-
-    requestAnimationFrame(loop);
-  }
-  loop();
-}
-
-function startHeartbeat(){
-  const c = document.getElementById("heartCanvas");
-  if (!c) return;
-  const ctx = c.getContext("2d");
-
-  function resize(){
-    c.width = c.clientWidth;
-    c.height = c.clientHeight;
-  }
-  resize();
-  window.addEventListener("resize", resize);
-
-  let t = 0;
-  function loop(){
-    ctx.clearRect(0,0,c.width,c.height);
-    ctx.strokeStyle = "#7ffcff";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-
-    for(let x=0;x<c.width;x++){
-      let y =
-        c.height/2 +
-        Math.sin((x+t)*0.05)*8 +
-        (x%120<10 ? -25 : 0);
-
-      ctx.lineTo(x,y);
+        requestAnimationFrame(loop);
+      }
+      loop();
     }
 
-    ctx.stroke();
-    t += 4;
-    requestAnimationFrame(loop);
-  }
-  loop();
-}
+    function startHeartbeat(){
+      const c = document.getElementById("heartCanvas");
+      if (!c) return;
+      const ctx = c.getContext("2d");
+
+      function resize(){
+        c.width = c.clientWidth;
+        c.height = c.clientHeight;
+      }
+      resize();
+      window.addEventListener("resize", resize);
+
+      let t = 0;
+      function loop(){
+        ctx.clearRect(0,0,c.width,c.height);
+        ctx.strokeStyle = "#7ffcff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        for(let x=0;x<c.width;x++){
+          let y =
+            c.height/2 +
+            Math.sin((x+t)*0.05)*8 +
+            (x%120<10 ? -25 : 0);
+
+          ctx.lineTo(x,y);
+        }
+
+        ctx.stroke();
+        t += 4;
+        requestAnimationFrame(loop);
+      }
+      loop();
+    }
 
     /* ================= LOADING ================= */
     function startLoadingSequence() {
@@ -885,218 +832,175 @@ function startHeartbeat(){
       setTimeout(next,150);
     }
 
-// ================= FINAL 中央角色（一次成型，不發散） =================
-function initFinalCharacter() {
-  if (finalScene) return;
+    /* ================= FINAL 角色 ================= */
+    function initFinalCharacter() {
+      if (finalScene) return;
 
-  // --- Scene ---
-  finalScene = new THREE.Scene();
+      finalScene = new THREE.Scene();
+      finalCamera = new THREE.PerspectiveCamera(50, 1, 1, 1000);
+      finalCamera.position.z = 180;
 
-  // --- Camera（FINAL 專用，較近、不吃整個畫面） ---
-  finalCamera = new THREE.PerspectiveCamera(
-    50,
-    1,        // 先給 1，下面會用 container 重算
-    1,
-    1000
-  );
-  finalCamera.position.z = 180; // ← 控制角色遠近（150~220）
+      finalRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+      finalRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-  // --- Renderer ---
-  finalRenderer = new THREE.WebGLRenderer({
-    alpha: true,
-    antialias: true
-  });
-  finalRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      const container = document.querySelector(".final-center");
+      const w = container.clientWidth;
+      const h = container.clientHeight;
 
-  // ✅ 只吃 FINAL 中央框
-  const container = document.querySelector(".final-center");
-  const w = container.clientWidth;
-  const h = container.clientHeight;
+      finalRenderer.setSize(w, h);
+      finalCamera.aspect = w / h;
+      finalCamera.updateProjectionMatrix();
 
-  finalRenderer.setSize(w, h);
-  finalCamera.aspect = w / h;
-  finalCamera.updateProjectionMatrix();
+      container.innerHTML = "";
+      container.appendChild(finalRenderer.domElement);
 
-  container.innerHTML = "";
-  container.appendChild(finalRenderer.domElement);
+      loadFinalCharacterPoints("./character.png").then(() => {
+        const body = [];
+        const face = [];
 
-  // --- 載入角色點雲（一開始就成人型） ---
-loadFinalCharacterPoints("./character.png").then(() => {
+        finalTargets.forEach(t => {
+          if (t.face) face.push(t);
+          else body.push(t);
+        });
 
-  // ① 分類：身體 / 臉
-  const body = [];
-  const face = [];
+        const bodyPos = new Float32Array(body.length * 3);
+        body.forEach((t, i) => {
+          bodyPos[i*3]   = t.x + 25;
+          bodyPos[i*3+1] = t.y + 40;
+          bodyPos[i*3+2] = t.z;
+        });
 
-  finalTargets.forEach(t => {
-    if (t.face) face.push(t);
-    else body.push(t);
-  });
+        const bodyGeo = new THREE.BufferGeometry();
+        bodyGeo.setAttribute("position", new THREE.BufferAttribute(bodyPos, 3));
 
-  /* ================= 身體 ================= */
+        const bodyMat = new THREE.PointsMaterial({
+          color: new THREE.Color(colorHex),
+          size: 0.7,
+          transparent: true,
+          opacity: 0.55,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
 
-  const bodyPos = new Float32Array(body.length * 3);
-  body.forEach((t, i) => {
-    bodyPos[i*3]   = t.x + 25;
-    bodyPos[i*3+1] = t.y + 40;
-    bodyPos[i*3+2] = t.z;
-  });
+        const bodyPoints = new THREE.Points(bodyGeo, bodyMat);
+        finalScene.add(bodyPoints);
 
-  const bodyGeo = new THREE.BufferGeometry();
-  bodyGeo.setAttribute("position", new THREE.BufferAttribute(bodyPos, 3));
+        const facePos = new Float32Array(face.length * 3);
+        face.forEach((t, i) => {
+          facePos[i*3]   = t.x + 25;
+          facePos[i*3+1] = t.y + 40;
+          facePos[i*3+2] = t.z;
+        });
 
-  const bodyMat = new THREE.PointsMaterial({
-    color: new THREE.Color(colorHex),
-    size: 0.7,
-    transparent: true,
-    opacity: 0.55,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false
-  });
+        const faceGeo = new THREE.BufferGeometry();
+        faceGeo.setAttribute("position", new THREE.BufferAttribute(facePos, 3));
 
-  const bodyPoints = new THREE.Points(bodyGeo, bodyMat);
-  finalScene.add(bodyPoints);
+        const faceMat = new THREE.PointsMaterial({
+          color: new THREE.Color(colorHex),
+          size: 1.0,
+          transparent: true,
+          opacity: 0.85,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
 
-  /* ================= 臉 ================= */
+        const facePoints = new THREE.Points(faceGeo, faceMat);
+        finalScene.add(facePoints);
 
-  const facePos = new Float32Array(face.length * 3);
-  face.forEach((t, i) => {
-    facePos[i*3]   = t.x + 25;
-    facePos[i*3+1] = t.y + 40;
-    facePos[i*3+2] = t.z; // z 已經在產生時往前
-  });
+        bodyPoints.scale.set(0.35, 0.35, 0.35);
+        facePoints.scale.set(0.35, 0.35, 0.35);
 
-  const faceGeo = new THREE.BufferGeometry();
-  faceGeo.setAttribute("position", new THREE.BufferAttribute(facePos, 3));
-
-  const faceMat = new THREE.PointsMaterial({
-    color: new THREE.Color(colorHex),
-    size: 1.0,          // ✅ 臉比較大
-    transparent: true,
-    opacity: 0.85,      // ✅ 臉比較亮
-    blending: THREE.AdditiveBlending,
-    depthWrite: false
-  });
-
-  const facePoints = new THREE.Points(faceGeo, faceMat);
-  finalScene.add(facePoints);
-
-  // 整體大小（兩層一起）
-  bodyPoints.scale.set(0.35, 0.35, 0.35);
-  facePoints.scale.set(0.35, 0.35, 0.35);
-
-  finalRenderer.render(finalScene, finalCamera);
-});
-}
-
-
-// ================= 從圖片生成 FINAL 角色點（修正版） =================
-function loadFinalCharacterPoints(src) {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.src = src;
-
-    img.onload = () => {
-      const c = document.createElement("canvas");
-      const ctx = c.getContext("2d");
-
-      const size = 240;
-      c.width = size;
-      c.height = size;
-      ctx.drawImage(img, 0, 0, size, size);
-
-      const data = ctx.getImageData(0, 0, size, size).data;
-      finalTargets = [];
-
-      const scale = 220;
-
-      for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-          const i = (y * size + x) * 4;
-
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          const alpha = data[i + 3];
-          const brightness = (r + g + b) / 3;
-
-          if (alpha < 50) continue;
-
-          const px = (x / size - 0.5) * scale;
-          const py = -(y / size - 0.5) * scale;
-
-// 👤 臉部強化（標記為 face）
-if (brightness > 165 && alpha > 60) {
-
-  // 核心臉
-  if (Math.random() > 0.1) {
-    finalTargets.push({
-      x: (x / size - 0.5) * scale,
-      y: -(y / size - 0.5) * scale,
-      z: 3,              // ✅ 臉更前
-      face: true         // ✅ 關鍵標記
-    });
-  }
-
-  // 輪廓補點
-  if (Math.random() > 0.6) {
-    finalTargets.push({
-      x: (x / size - 0.5) * scale + (Math.random() - 0.5) * 2,
-      y: -(y / size - 0.5) * scale + (Math.random() - 0.5) * 2,
-      z: 4,
-      face: true
-    });
-  }
-}
-
-
-          // 🧍 身體（暗色）— 一定要抽
-          else {
-            if (Math.random() < 0.22) {
-              finalTargets.push({ x: px, y: py, z: 0 });
-            }
-          }
-        }
-      }
-
-      resolve();
-    };
-  });
-}
-
-
-
-// FINAL 動畫（只做微呼吸）
-function startFinalCharacter() {
-  stopFinalCharacter();
-  finalAnimating = true;
-
-  const loop = () => {
-    if (!finalAnimating || !finalParticles) return;
-
-    const p = finalParticles.geometry.attributes.position.array;
-    const t = Date.now() * 0.001;
-
-    for (let i = 0; i * 3 < p.length; i++) {
-      p[i * 3 + 2] += Math.sin(t + i * 0.02) * 0.03;
+        finalRenderer.render(finalScene, finalCamera);
+      });
     }
 
-    finalParticles.geometry.attributes.position.needsUpdate = true;
-    finalRenderer.render(finalScene, finalCamera);
-    finalRAF = requestAnimationFrame(loop);
-  };
+    function loadFinalCharacterPoints(src) {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.src = src;
 
-  loop();
-}
+        img.onload = () => {
+          const c = document.createElement("canvas");
+          const ctx = c.getContext("2d");
 
-// FINAL 停止（離開時一定要）
-function stopFinalCharacter() {
-  finalAnimating = false;
-  if (finalRAF) {
-    cancelAnimationFrame(finalRAF);
-    finalRAF = null;
-  }
-}
+          const size = 240;
+          c.width = size;
+          c.height = size;
+          ctx.drawImage(img, 0, 0, size, size);
 
+          const data = ctx.getImageData(0, 0, size, size).data;
+          finalTargets = [];
+
+          const scale = 220;
+
+          for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+              const i = (y * size + x) * 4;
+
+              const r = data[i];
+              const g = data[i + 1];
+              const b = data[i + 2];
+              const alpha = data[i + 3];
+              const brightness = (r + g + b) / 3;
+
+              if (alpha < 50) continue;
+
+              const px = (x / size - 0.5) * scale;
+              const py = -(y / size - 0.5) * scale;
+
+              if (brightness > 165 && alpha > 60) {
+                if (Math.random() > 0.1) {
+                  finalTargets.push({
+                    x: (x / size - 0.5) * scale,
+                    y: -(y / size - 0.5) * scale,
+                    z: 3,
+                    face: true
+                  });
+                }
+
+                if (Math.random() > 0.6) {
+                  finalTargets.push({
+                    x: (x / size - 0.5) * scale + (Math.random() - 0.5) * 2,
+                    y: -(y / size - 0.5) * scale + (Math.random() - 0.5) * 2,
+                    z: 4,
+                    face: true
+                  });
+                }
+              }
+              else {
+                if (Math.random() < 0.22) {
+                  finalTargets.push({ x: px, y: py, z: 0 });
+                }
+              }
+            }
+          }
+
+          resolve();
+        };
+      });
+    }
+
+    function startFinalCharacter() {
+      stopFinalCharacter();
+      finalAnimating = true;
+
+      const loop = () => {
+        if (!finalAnimating || !finalRenderer) return;
+
+        finalRenderer.render(finalScene, finalCamera);
+        finalRAF = requestAnimationFrame(loop);
+      };
+
+      loop();
+    }
+
+    function stopFinalCharacter() {
+      finalAnimating = false;
+      if (finalRAF) {
+        cancelAnimationFrame(finalRAF);
+        finalRAF = null;
+      }
+    }
 
     function switchScreen(state) {
       document.querySelectorAll(".screen").forEach(el=>{
@@ -1117,7 +1021,7 @@ function stopFinalCharacter() {
 
       if (state === STATES.IDLE) {
         stopFinalCharacter();
-        stopCosmosHandTracking(); // ✅ 加這行
+        stopCosmosHandTracking();
         startCamera();
         animating = false;
         if (rafId) cancelAnimationFrame(rafId);
@@ -1126,7 +1030,7 @@ function stopFinalCharacter() {
 
       else if (state === STATES.LOADING) {
         stopFinalCharacter();
-        stopCosmosHandTracking(); // ✅ 加這行
+        stopCosmosHandTracking();
         stopCamera();
         startLoadingSequence();
         animating = false;
@@ -1142,7 +1046,7 @@ function stopFinalCharacter() {
         animating = true;
         morphStrength = 0;
 
-        startCosmosHandTracking(); // ✅ 加這行：啟動手勢追蹤
+        startCosmosHandTracking();
 
         setTimeout(() => {
           morphStrength = 1;
@@ -1152,48 +1056,33 @@ function stopFinalCharacter() {
       }
 
       else if (state === STATES.FINAL) {
-  stopCamera();
-        stopCosmosHandTracking(); // ✅ 加這行
+        stopCamera();
+        stopCosmosHandTracking();
 
-  // 停止 COSMOS 動畫
-  animating = false;
-  if (rafId) {
-    cancelAnimationFrame(rafId);
-    rafId = null;
-  }
+        animating = false;
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
 
-  // 啟動 FINAL 中央角色
-  initFinalCharacter();
-  startFinalCharacter();
+        // ✅ 修正：只呼叫一次
+        initFinalCharacter();
+        startFinalCharacter();
+        startDNA();
+        startGrid();
+        startHeartbeat();
 
-  // 右側文字（之後會改成 sheet 讀）
-  document.getElementById("final-title").textContent =
-    "GENETIC PROFILE · A01";
-
-  document.getElementById("final-text").textContent =
-    "Your biological resonance indicates high adaptability and strong cosmic synchronization.\nFurther evolution recommended.";
-}
-
-
-          // ★ 啟動左邊三格動畫
-  startDNA();
-  startGrid();
-  startHeartbeat();
-
-        document.getElementById("final-title").textContent =
-          "GENETIC PROFILE · A01";
-
+        document.getElementById("final-title").textContent = "GENETIC PROFILE · A01";
         document.getElementById("final-text").textContent =
           "Your biological resonance indicates high adaptability and strong cosmic synchronization.\nFurther evolution recommended.";
       }
-    );
+    });
 
     onValue(ref(db,"session/color"), s=>{
       if(!s.val()) return;
       colorHex=s.val();
       if(particles) particles.material.color.set(colorHex);
       if (finalParticles) finalParticles.material.color.set(colorHex);
-
     });
 
     set(ref(db,"runtime/state"),STATES.IDLE);
@@ -1216,27 +1105,22 @@ function stopFinalCharacter() {
     console.log("Three.js 版本:", THREE.REVISION);
     console.log("初始狀態:", STATES.IDLE);
 
-// ===== 測試：從 GAS 讀資料 → 寫入 Firebase session =====
-async function testLoadSession(id) {
-  const res = await fetch(
-    "https://script.google.com/macros/s/AKfycbySLmfh1u_jqJ3jMXMhu8QTb40of6DPInwxEEYL3-JkvHY1Mel5ViMvVoNeJkBElaJ1Ng/exec?code=" + id
-  );
-  const data = await res.json();
+    async function testLoadSession(id) {
+      const res = await fetch(
+        "https://script.google.com/macros/s/AKfycbySLmfh1u_jqJ3jMXMhu8QTb40of6DPInwxEEYL3-JkvHY1Mel5ViMvVoNeJkBElaJ1Ng/exec?code=" + id
+      );
+      const data = await res.json();
 
-  console.log("GAS data:", data);
+      console.log("GAS data:", data);
 
-  if (data && data.id) {
-    await set(ref(db, "session"), data);
-    console.log("session written:", data);
-  }
-}
+      if (data && data.id) {
+        await set(ref(db, "session"), data);
+        console.log("session written:", data);
+      }
+    }
 
-// 🔧 暫時掛在 window，方便在 console 呼叫
-window.testLoadSession = testLoadSession;
-
-
+    window.testLoadSession = testLoadSession;
 
   </script>
 </body>
 </html>
-
