@@ -7,6 +7,12 @@
   <!-- Three.js（全域） -->
   <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
 
+    <!-- MediaPipe Hands -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
+
   <style>
     html, body {
       margin: 0;
@@ -909,20 +915,26 @@ function stopFinalCharacter() {
         rafId = null;
       }
 
-      else if (state === STATES.COSMOS) {
-        stopFinalCharacter();
-        stopCamera();
-        initCosmos();
+     else if (state === STATES.COSMOS) {
+  stopFinalCharacter();
 
-        animating = true;
-        morphStrength = 0;
+  // ✅ 給 MediaPipe 用
+  startCamera();
 
-        setTimeout(() => {
-          morphStrength = 1;
-        }, 1000);
+  // ✅ 啟動手勢偵測（關鍵）
+  initHands(video);
 
-        if (scene && !rafId) startAnimateLoop();
-      }
+  initCosmos();
+
+  animating = true;
+  morphStrength = 0;
+
+  setTimeout(() => {
+    morphStrength = 1;
+  }, 1000);
+
+  if (scene && !rafId) startAnimateLoop();
+}
 
       else if (state === STATES.FINAL) {
   stopCamera();
@@ -1045,10 +1057,53 @@ onValue(ref(db, "control"), async (s) => {
   }
 });
 
+    // ================= MediaPipe Hands（COSMOS 專用） =================
+let hands = null;
+let mpCamera = null;
+let handActive = false;
+
+function initHands(videoEl) {
+  if (hands) return;
+
+  hands = new Hands({
+    locateFile: file =>
+      `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+  });
+
+  hands.setOptions({
+    maxNumHands: 1,
+    modelComplexity: 1,
+    minDetectionConfidence: 0.7,
+    minTrackingConfidence: 0.7
+  });
+
+  hands.onResults(results => {
+    if (results.multiHandLandmarks?.length) {
+      if (!handActive) {
+        console.log("✋ Hand detected");
+        handActive = true;
+      }
+    } else {
+      handActive = false;
+    }
+  });
+
+  mpCamera = new Camera(videoEl, {
+    onFrame: async () => {
+      await hands.send({ image: videoEl });
+    },
+    width: 640,
+    height: 480
+  });
+
+  mpCamera.start();
+}
+
 
   </script>
 </body>
 </html>
+
 
 
 
