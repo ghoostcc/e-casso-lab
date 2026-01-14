@@ -402,23 +402,26 @@
         
         document.getElementById('fingers').innerText = fingerCount;
         
-        if (fingerCount >= 4) {
+        // ✅ 只有兩種狀態
+        if (fingerCount === 5) {
+          // 張開手掌(5根手指) = 粒子分散
           document.getElementById('gesture').innerText = '張開手掌';
           document.getElementById('mode').innerText = '粒子分散';
           setScatterMode();
-        } else if (fingerCount <= 1) {
+        } else if (fingerCount === 0) {
+          // 握拳(0根手指) = 顯示角色
           document.getElementById('gesture').innerText = '握拳';
-          document.getElementById('mode').innerText = '聚合到手掌';
-          setGatherMode();
-        } else {
-          document.getElementById('gesture').innerText = '部分張開';
           document.getElementById('mode').innerText = '顯示角色';
-          morphStrength = 1;
+          morphStrength = 1; // 回到角色顯示
+        } else {
+          // 其他手指數 = 維持當前狀態,不改變
+          document.getElementById('gesture').innerText = `${fingerCount}根手指`;
+          document.getElementById('mode').innerText = '(維持當前狀態)';
         }
       } else {
         document.getElementById('gesture').innerText = '未偵測';
         document.getElementById('mode').innerText = '顯示角色';
-        morphStrength = 1;
+        if (morphStrength !== 1) morphStrength = 1; // 沒偵測到手就顯示角色
       }
     }
 
