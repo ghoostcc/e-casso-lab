@@ -6,7 +6,10 @@
 
   <!-- Three.js（全域） -->
   <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
-
+  <!-- ✅✅✅ 步驟 1: 加入 MediaPipe CDN（在 </head> 之前） ✅✅✅ -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <!-- ✅✅✅ 步驟 1 結束 ✅✅✅ -->
   <style>
     html, body {
       margin: 0;
@@ -113,7 +116,7 @@
       );
       transition: width 0.6s ease;
     }
-
+    /* ================= COSMOS ================= */
     /* ✅ COSMOS：讓 canvas 充滿整個畫面 */
     #cosmos.active {
       display: block;
@@ -124,7 +127,45 @@
       height: 100% !important;
       display: block;
     }
+  /* ✅✅✅ 步驟 2: 加入 COSMOS 手勢 UI 樣式 ✅✅✅ */
+    #cosmos-hud {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 10;
+      padding: 15px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid #7ffcff;
+      font-size: 14px;
+      color: #7ffcff;
+      font-family: monospace;
+      display: none;
+    }
+    #cosmos.active #cosmos-hud {
+      display: block;
+    }
+    .hud-value {
+      font-weight: bold;
+      color: #7ffcff;
+    }
 
+    #cosmos-camera {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      width: 160px;
+      height: 120px;
+      transform: scaleX(-1);
+      opacity: 0.3;
+      border: 1px solid #7ffcff;
+      z-index: 10;
+      display: none;
+    }
+    #cosmos.active #cosmos-camera {
+      display: block;
+    }
+    /* ✅✅✅ 步驟 2 結束 ✅✅✅ */
+    
     #debug {
       position: fixed;
       bottom: 10px;
@@ -271,8 +312,18 @@
     </div>
   </div>
 
-  <!-- COSMOS -->
-  <div id="cosmos" class="screen"></div>
+  <!-- ✅✅✅ 步驟 3: 在 COSMOS 加入手勢 UI 元素 ✅✅✅ -->
+  <div id="cosmos" class="screen">
+    <!-- 手勢 HUD -->
+    <div id="cosmos-hud">
+      <div>手勢: <span id="gesture" class="hud-value">等待中...</span></div>
+      <div>手指數: <span id="fingers" class="hud-value">0</span></div>
+      <div>模式: <span id="mode" class="hud-value">角色顯示</span></div>
+    </div>
+    <!-- 手勢攝影機（小視窗） -->
+    <video id="cosmos-camera" autoplay muted playsinline></video>
+  </div>
+  <!-- ✅✅✅ 步驟 3 結束 ✅✅✅ -->
 
 <!-- FINAL -->
 <div id="final" class="screen">
@@ -354,7 +405,15 @@ let finalAnimating = false;
       camStream = null;
       video.srcObject = null;
     }
-
+    /* ✅✅✅ 步驟 4: 加入手勢追蹤變數（在 COSMOS 變數區塊） ✅✅✅ */
+    let cosmosHandStream = null;
+    let cosmosHands = null;
+    let cosmosCamera = null;
+    let handData = null;
+    let scatterTargets = [];
+    let gatherPoint = null;
+    /* ✅✅✅ 步驟 4 結束 ✅✅✅ */
+    
     /* ================= COSMOS ================= */
     let scene, camera3D, renderer, particles;
     let animating = false;
@@ -363,6 +422,150 @@ let finalAnimating = false;
     let morphStrength = 0;
     let rafId = null;
 
+     /* ✅✅✅ 步驟 5: 加入手勢偵測函數（在 COSMOS 區塊後面） ✅✅✅ */
+    // 手勢偵測核心
+    function countFingers(landmarks) {
+      let count = 0;
+      
+      if (landmarks[8].y < landmarks[6].y) count++;
+      if (landmarks[12].y < landmarks[10].y) count++;
+      if (landmarks[16].y < landmarks[14].y) count++;
+      if (landmarks[20].y < landmarks[18].y) count++;
+      
+      const wrist = landmarks[0];
+      const indexMCP = landmarks[5];
+      const thumbTip = landmarks[4];
+      const scale = Math.hypot(indexMCP.x - wrist.x, indexMCP.y - wrist.y);
+      const thumbDist = Math.hypot(thumbTip.x - indexMCP.x, thumbTip.y - indexMCP.y);
+      
+      if (thumbDist > scale * 0.5) count++;
+      
+      return count;
+    }
+
+    // 手勢結果處理
+    function onHandResults(results) {
+      handData = null;
+      
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        const fingerCount = countFingers(landmarks);
+        handData = { landmarks, fingerCount };
+        
+        document.getElementById('fingers').innerText = fingerCount;
+        
+        if (fingerCount >= 4) {
+          document.getElementById('gesture').innerText = '張開手掌';
+          document.getElementById('mode').innerText = '粒子分散';
+          setScatterMode();
+        } else if (fingerCount <= 1) {
+          document.getElementById('gesture').innerText = '握拳';
+          document.getElementById('mode').innerText = '聚合到手掌';
+          setGatherMode();
+        } else {
+          document.getElementById('gesture').innerText = '部分張開';
+          document.getElementById('mode').innerText = '顯示角色';
+          morphStrength = 1;
+        }
+      } else {
+        document.getElementById('gesture').innerText = '未偵測';
+        document.getElementById('mode').innerText = '顯示角色';
+        morphStrength = 1;
+      }
+    }
+
+    // 粒子分散模式
+    function setScatterMode() {
+      const w = window.innerWidth * 1.2;
+      const h = window.innerHeight * 1.2;
+      const d = 800;
+      
+      if (scatterTargets.length === 0) {
+        for (let i = 0; i < 24000; i++) {
+          scatterTargets.push({
+            x: (Math.random() - 0.5) * w,
+            y: (Math.random() - 0.5) * h,
+            z: (Math.random() - 0.5) * d
+          });
+        }
+      }
+      
+      morphStrength = 0;
+    }
+
+    // 粒子聚合模式
+    function setGatherMode() {
+      if (!handData || !particles) return;
+      
+      const vFOV = THREE.MathUtils.degToRad(camera3D.fov);
+      const heightAtZ0 = 2 * Math.tan(vFOV / 2) * camera3D.position.z;
+      const widthAtZ0 = heightAtZ0 * camera3D.aspect;
+      
+      const palmCenter = handData.landmarks[9];
+      const centerX = -(palmCenter.x - 0.5) * widthAtZ0;
+      const centerY = -(palmCenter.y - 0.5) * heightAtZ0;
+      
+      morphStrength = -1;
+      gatherPoint = { x: centerX, y: centerY, z: 0 };
+    }
+
+    // 啟動手勢追蹤
+    function startCosmosHandTracking() {
+      if (cosmosHands) return;
+      
+      const videoElement = document.getElementById('cosmos-camera');
+      
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          cosmosHandStream = stream;
+          videoElement.srcObject = stream;
+        })
+        .catch(err => {
+          console.warn("COSMOS 手勢攝影機錯誤:", err);
+        });
+      
+      cosmosHands = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+      });
+      
+      cosmosHands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.7
+      });
+      
+      cosmosHands.onResults(onHandResults);
+      
+      cosmosCamera = new Camera(videoElement, {
+        onFrame: async () => {
+          await cosmosHands.send({ image: videoElement });
+        },
+        width: 640,
+        height: 480
+      });
+      
+      cosmosCamera.start();
+      console.log("✅ COSMOS 手勢追蹤已啟動");
+    }
+
+    // 停止手勢追蹤
+    function stopCosmosHandTracking() {
+      if (cosmosHandStream) {
+        cosmosHandStream.getTracks().forEach(t => t.stop());
+        cosmosHandStream = null;
+      }
+      if (cosmosCamera) {
+        cosmosCamera.stop();
+        cosmosCamera = null;
+      }
+      cosmosHands = null;
+      handData = null;
+      document.getElementById('cosmos-camera').srcObject = null;
+      console.log("❌ COSMOS 手勢追蹤已停止");
+    }
+    /* ✅✅✅ 步驟 5 結束 ✅✅✅ */
+    
     function initCosmos() {
       if (scene) return;
 
@@ -473,6 +676,7 @@ let finalAnimating = false;
       });
     }
 
+   /* ✅✅✅ 步驟 6: 修改動畫循環（替換原本的 startAnimateLoop）✅✅✅ */
     function startAnimateLoop() {
       if (rafId) cancelAnimationFrame(rafId);
 
@@ -482,25 +686,50 @@ let finalAnimating = false;
         const p = particles.geometry.attributes.position.array;
         const time = Date.now() * 0.0003;
 
-        const hasTargets = characterTargets.length > 0;
-
-        if (hasTargets) {
+        // 握拳 = 聚合到手掌
+        if (morphStrength === -1 && gatherPoint) {
+          for (let i = 0; i * 3 < p.length; i++) {
+            const idx = i * 3;
+            const noise = 80;
+            
+            const tx = gatherPoint.x + (Math.random() - 0.5) * noise;
+            const ty = gatherPoint.y + (Math.random() - 0.5) * noise;
+            const tz = gatherPoint.z + (Math.random() - 0.5) * noise;
+            
+            p[idx]     += (tx - p[idx]) * 0.12;
+            p[idx + 1] += (ty - p[idx + 1]) * 0.12;
+            p[idx + 2] += (tz - p[idx + 2]) * 0.12;
+          }
+        }
+        // 張開手掌 = 分散
+        else if (morphStrength === 0 && scatterTargets.length > 0) {
+          for (let i = 0; i * 3 < p.length; i++) {
+            const idx = i * 3;
+            const t = scatterTargets[i] || scatterTargets[0];
+            
+            p[idx]     += (t.x - p[idx]) * 0.08;
+            p[idx + 1] += (t.y - p[idx + 1]) * 0.08;
+            p[idx + 2] += (t.z - p[idx + 2]) * 0.08;
+          }
+        }
+        // 顯示角色（原本的邏輯）
+        else if (morphStrength === 1 && characterTargets.length > 0) {
           for (let i = 0; i < characterTargets.length && i * 3 < p.length; i++) {
             const idx = i * 3;
             const t = characterTargets[i];
             const breathe = Math.sin(time + i * 0.01) * 0.3;
 
-            p[idx]     += (t.x - p[idx])     * 0.06 * morphStrength;
-            p[idx + 1] += (t.y - p[idx + 1]) * 0.06 * morphStrength;
-            p[idx + 2] += (t.z + breathe - p[idx + 2]) * 0.06 * morphStrength;
+            p[idx]     += (t.x - p[idx])     * 0.06;
+            p[idx + 1] += (t.y - p[idx + 1]) * 0.06;
+            p[idx + 2] += (t.z + breathe - p[idx + 2]) * 0.06;
           }
-        }
 
-        for (let i = hasTargets ? characterTargets.length : 0; i * 3 < p.length; i++) {
-          const idx = i * 3;
-          p[idx]     += Math.sin(time + i * 0.1) * 0.04 * (1 - morphStrength);
-          p[idx + 1] += Math.cos(time + i * 0.15) * 0.04 * (1 - morphStrength);
-          p[idx + 2] += Math.sin(time + i * 0.2) * 0.04 * (1 - morphStrength);
+          for (let i = characterTargets.length; i * 3 < p.length; i++) {
+            const idx = i * 3;
+            p[idx]     += Math.sin(time + i * 0.1) * 0.04;
+            p[idx + 1] += Math.cos(time + i * 0.15) * 0.04;
+            p[idx + 2] += Math.sin(time + i * 0.2) * 0.04;
+          }
         }
 
         particles.geometry.attributes.position.needsUpdate = true;
@@ -512,6 +741,8 @@ let finalAnimating = false;
 
       rafId = requestAnimationFrame(loop);
     }
+    /* ✅✅✅ 步驟 6 結束 ✅✅✅ */
+
 
     function startDNA(){
   const c = document.getElementById("dnaCanvas");
@@ -886,6 +1117,7 @@ function stopFinalCharacter() {
 
       if (state === STATES.IDLE) {
         stopFinalCharacter();
+        stopCosmosHandTracking(); // ✅ 加這行
         startCamera();
         animating = false;
         if (rafId) cancelAnimationFrame(rafId);
@@ -894,6 +1126,7 @@ function stopFinalCharacter() {
 
       else if (state === STATES.LOADING) {
         stopFinalCharacter();
+        stopCosmosHandTracking(); // ✅ 加這行
         stopCamera();
         startLoadingSequence();
         animating = false;
@@ -909,6 +1142,8 @@ function stopFinalCharacter() {
         animating = true;
         morphStrength = 0;
 
+        startCosmosHandTracking(); // ✅ 加這行：啟動手勢追蹤
+
         setTimeout(() => {
           morphStrength = 1;
         }, 1000);
@@ -918,6 +1153,7 @@ function stopFinalCharacter() {
 
       else if (state === STATES.FINAL) {
   stopCamera();
+        stopCosmosHandTracking(); // ✅ 加這行
 
   // 停止 COSMOS 動畫
   animating = false;
@@ -1003,3 +1239,4 @@ window.testLoadSession = testLoadSession;
   </script>
 </body>
 </html>
+
