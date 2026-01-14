@@ -1078,16 +1078,16 @@ function initHands(videoEl) {
     minTrackingConfidence: 0.7
   });
 
-  hands.onResults(results => {
-    if (results.multiHandLandmarks?.length) {
-      if (!handActive) {
-        console.log("✋ Hand detected");
-        handActive = true;
-      }
-    } else {
-      handActive = false;
-    }
-  });
+hands.onResults(results => {
+  if (results.multiHandLandmarks?.length) {
+    handActive = true;
+    morphStrength = 1;   // ✅ 有手 → 聚合
+  } else {
+    handActive = false;
+    morphStrength = 0;   // ✅ 沒手 → 發散
+  }
+});
+
 
   mpCamera = new Camera(videoEl, {
     onFrame: async () => {
@@ -1118,6 +1118,7 @@ function stopHands() {
   </script>
 </body>
 </html>
+
 
 
 
