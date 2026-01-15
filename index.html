@@ -241,16 +241,34 @@
     }
 
     .final-right h2 {
-      margin: 0;
-      font-size: 20px;
+      margin: 0 0 10px 0;
+      font-size: 18px;
       letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .final-right .color-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .final-right .item-name {
+      font-size: 22px;
+      font-weight: bold;
+      margin: 15px 0;
+      letter-spacing: 1px;
     }
 
     .final-right p {
       margin-top: 18px;
-      font-size: 14px;
-      line-height: 1.7;
+      font-size: 16px;
+      line-height: 1.8;
       white-space: pre-wrap;
+      text-align: justify;
     }
   </style>
 </head>
@@ -295,8 +313,12 @@
     </div>
     <div class="final-center"></div>
     <div class="final-right">
-      <h2 id="final-title">GENETIC ANALYSIS</h2>
-      <p id="final-text">Awaiting biological conclusion...</p>
+      <h2>
+        <span id="final-color-code">#F98520</span>
+        <span class="color-dot" id="final-color-dot"></span>
+      </h2>
+      <div class="item-name" id="final-item">壁爐內的火</div>
+      <p id="final-text">載入中...</p>
     </div>
   </div>
 
@@ -1105,16 +1127,36 @@
           rafId = null;
         }
 
-        // ✅ 修正：只呼叫一次
+        // ✅ 只呼叫一次
         initFinalCharacter();
         startFinalCharacter();
         startDNA();
         startGrid();
         startHeartbeat();
 
-        document.getElementById("final-title").textContent = "GENETIC PROFILE · A01";
-        document.getElementById("final-text").textContent =
-          "Your biological resonance indicates high adaptability and strong cosmic synchronization.\nFurther evolution recommended.";
+        // ✅ 從 Firebase session 讀取資料
+        const sessionRef = ref(db, "session");
+        onValue(sessionRef, (snapshot) => {
+          const data = snapshot.val();
+          
+          if (data && data.color && data.item && data.conclusion) {
+            // 更新顏色碼和圓點
+            document.getElementById("final-color-code").textContent = data.color;
+            document.getElementById("final-color-dot").style.backgroundColor = data.color;
+            
+            // 更新項目名稱
+            document.getElementById("final-item").textContent = data.item;
+            
+            // 更新結論文字
+            document.getElementById("final-text").textContent = data.conclusion;
+          } else {
+            // 如果沒有資料,顯示預設內容
+            document.getElementById("final-color-code").textContent = "#66FFFF";
+            document.getElementById("final-color-dot").style.backgroundColor = "#66FFFF";
+            document.getElementById("final-item").textContent = "未知元素";
+            document.getElementById("final-text").textContent = "請先掃描並載入資料...";
+          }
+        }, { onlyOnce: true }); // 只讀一次
       }
     });
 
@@ -1154,12 +1196,22 @@
       console.log("GAS data:", data);
 
       if (data && data.id) {
-        await set(ref(db, "session"), data);
-        console.log("session written:", data);
+        // ✅ 寫入 Firebase session
+        await set(ref(db, "session"), {
+          id: data.id,
+          name: data.name,
+          color: data.color,
+          item: data.item,
+          conclusion: data.conclusion
+        });
+        console.log("✅ Session 資料已寫入 Firebase:", data);
       }
     }
 
     window.testLoadSession = testLoadSession;
+
+    // ✅ 測試用:直接載入 308-6 的資料
+    // testLoadSession("308-6");
 
   </script>
 </body>
