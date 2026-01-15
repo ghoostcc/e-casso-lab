@@ -269,6 +269,24 @@
       line-height: 1.8;
       white-space: pre-wrap;
       text-align: justify;
+      /* ✅ 限制文字不超出框框 */
+      max-height: 400px;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+
+    /* ✅ 自訂捲軸樣式 */
+    .final-right p::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .final-right p::-webkit-scrollbar-track {
+      background: rgba(127, 252, 255, 0.1);
+    }
+
+    .final-right p::-webkit-scrollbar-thumb {
+      background: rgba(127, 252, 255, 0.5);
+      border-radius: 3px;
     }
   </style>
 </head>
@@ -922,7 +940,7 @@
         bodyGeo.setAttribute("position", new THREE.BufferAttribute(bodyPos, 3));
 
         const bodyMat = new THREE.PointsMaterial({
-          color: new THREE.Color(colorHex),
+          color: new THREE.Color(colorHex), // ✅ 使用當前顏色
           size: 0.7,
           transparent: true,
           opacity: 0.55,
@@ -944,7 +962,7 @@
         faceGeo.setAttribute("position", new THREE.BufferAttribute(facePos, 3));
 
         const faceMat = new THREE.PointsMaterial({
-          color: new THREE.Color(colorHex),
+          color: new THREE.Color(colorHex), // ✅ 使用當前顏色
           size: 1.0,
           transparent: true,
           opacity: 0.85,
@@ -1061,12 +1079,15 @@
 
     /* ================= Firebase 狀態 ================= */
     
+    let controlProcessing = false; // ✅ 防止重複觸發
+    
     // ✅ 監聽 control 指令(從手機控制)
     onValue(ref(db, "control"), async (snapshot) => {
       const control = snapshot.val();
-      if (!control || !control.action) return;
+      if (!control || !control.action || controlProcessing) return;
 
       console.log("收到控制指令:", control);
+      controlProcessing = true;
 
       if (control.action === "START" && control.code) {
         // 1. 先從 GAS 載入資料
@@ -1086,6 +1107,9 @@
               conclusion: data.conclusion
             });
             console.log("✅ Session 資料已載入:", data);
+            
+            // ✅ 更新全域顏色變數
+            colorHex = data.color;
           }
         } catch (err) {
           console.error("❌ 載入 Session 失敗:", err);
@@ -1097,17 +1121,28 @@
         // 3. 延遲後進入 COSMOS
         setTimeout(() => {
           set(ref(db, "runtime/state"), STATES.COSMOS);
+          controlProcessing = false;
         }, 2400);
       }
 
       else if (control.action === "FINAL") {
-        set(ref(db, "runtime/state"), STATES.FINAL);
+        await set(ref(db, "runtime/state"), STATES.FINAL);
+        controlProcessing = false;
       }
 
       else if (control.action === "RESET") {
-        set(ref(db, "runtime/state"), STATES.IDLE);
-        // 清空 session
+        // ✅ 重置所有狀態
+        gestureState = "WAITING";
+        morphStrength = 0;
+        scatterTargets = [];
+        
+        await set(ref(db, "runtime/state"), STATES.IDLE);
         await set(ref(db, "session"), null);
+        
+        // ✅ 清空 control,避免重複觸發
+        await set(ref(db, "control"), null);
+        
+        controlProcessing = false;
       }
     });
 
@@ -1141,6 +1176,10 @@
       else if (state === STATES.COSMOS) {
         stopFinalCharacter();
         stopCamera();
+        
+        // ✅ 先停止舊的手勢追蹤
+        stopCosmosHandTracking();
+        
         initCosmos();
 
         animating = true;
@@ -1164,7 +1203,10 @@
           });
         }
 
-        startCosmosHandTracking();
+        // ✅ 延遲啟動手勢追蹤,確保畫面已完成
+        setTimeout(() => {
+          startCosmosHandTracking();
+        }, 500);
 
         if (scene && !rafId) startAnimateLoop();
       }
@@ -1177,6 +1219,17 @@
         if (rafId) {
           cancelAnimationFrame(rafId);
           rafId = null;
+        }
+
+        // ✅ 清理舊的 FINAL 場景
+        if (finalScene) {
+          finalScene.clear();
+          finalScene = null;
+        }
+        if (finalRenderer) {
+          const container = document.querySelector(".final-center");
+          if (container) container.innerHTML = "";
+          finalRenderer = null;
         }
 
         initFinalCharacter();
@@ -1193,17 +1246,20 @@
           console.log("📊 讀取 Session 資料:", data);
           
           if (data && data.color && data.title && data.conclusion) {
+            // ✅ 更新全域顏色
+            colorHex = data.color;
+            
             // 更新顏色碼和圓點
             document.getElementById("final-color-code").textContent = data.color;
             document.getElementById("final-color-dot").style.backgroundColor = data.color;
             
-            // 更新項目名稱(使用 title)
-            document.getElementById("final-item").textContent = data.title;
+            // 更新項目名稱(移除 "GENETIC PROFILE · ")
+            const itemName = data.title.replace("GENETIC PROFILE · ", "").replace("GENETIC PROFILE·", "");
+            document.getElementById("final-item").textContent = itemName;
             
             // 更新結論文字
             document.getElementById("final-text").textContent = data.conclusion;
           } else {
-            // 如果沒有資料,顯示預設內容
             document.getElementById("final-color-code").textContent = "#66FFFF";
             document.getElementById("final-color-dot").style.backgroundColor = "#66FFFF";
             document.getElementById("final-item").textContent = "未知元素";
