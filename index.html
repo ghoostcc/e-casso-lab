@@ -235,9 +235,12 @@
       top: 180px;
       right: 289px;
       width: 380px;
+      height: 580px; /* ✅ 固定高度 */
       color: #7ffcff;
       font-family: monospace;
       text-shadow: 0 0 8px rgba(0,255,255,0.25);
+      display: flex;
+      flex-direction: column;
     }
 
     .final-right h2 {
@@ -247,6 +250,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      flex-shrink: 0; /* ✅ 不壓縮 */
     }
 
     .final-right .color-dot {
@@ -261,6 +265,7 @@
       font-weight: bold;
       margin: 15px 0;
       letter-spacing: 1px;
+      flex-shrink: 0; /* ✅ 不壓縮 */
     }
 
     .final-right p {
@@ -268,11 +273,14 @@
       font-size: 16px;
       line-height: 1.8;
       white-space: pre-wrap;
-      text-align: justify;
+      word-wrap: break-word; /* ✅ 強制換行 */
+      overflow-wrap: break-word; /* ✅ 強制換行 */
       /* ✅ 限制文字不超出框框 */
-      max-height: 400px;
+      flex: 1; /* ✅ 填滿剩餘空間 */
       overflow-y: auto;
+      overflow-x: hidden; /* ✅ 隱藏橫向捲軸 */
       padding-right: 10px;
+      max-width: 100%; /* ✅ 不超出父容器 */
     }
 
     /* ✅ 自訂捲軸樣式 */
@@ -1090,6 +1098,8 @@
       controlProcessing = true;
 
       if (control.action === "START" && control.code) {
+        console.log("🚀 開始 START 流程...");
+        
         // 1. 先從 GAS 載入資料
         try {
           const res = await fetch(
@@ -1118,11 +1128,14 @@
         // 2. 切換到 LOADING
         await set(ref(db, "runtime/state"), STATES.LOADING);
 
-        // 3. 延遲後進入 COSMOS
-        setTimeout(() => {
-          set(ref(db, "runtime/state"), STATES.COSMOS);
+        // 3. 延遲後進入 COSMOS (增加延遲時間)
+        setTimeout(async () => {
+          await set(ref(db, "runtime/state"), STATES.COSMOS);
+          // ✅ 清空 control,避免重複觸發
+          await set(ref(db, "control"), null);
           controlProcessing = false;
-        }, 2400);
+          console.log("✅ 進入 COSMOS");
+        }, 2800); // ✅ 增加到 2.8 秒
       }
 
       else if (control.action === "FINAL") {
@@ -1131,18 +1144,60 @@
       }
 
       else if (control.action === "RESET") {
-        // ✅ 重置所有狀態
+        console.log("🔄 開始 RESET...");
+        
+        // ✅ 1. 停止所有動畫和追蹤
+        stopFinalCharacter();
+        stopCosmosHandTracking();
+        stopCamera();
+        
+        animating = false;
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+        
+        // ✅ 2. 重置所有狀態變數
         gestureState = "WAITING";
         morphStrength = 0;
         scatterTargets = [];
+        gatherPoint = null;
+        handData = null;
         
-        await set(ref(db, "runtime/state"), STATES.IDLE);
+        // ✅ 3. 清空場景
+        if (scene) {
+          scene.clear();
+          scene = null;
+        }
+        if (renderer) {
+          const cosmosEl = document.getElementById("cosmos");
+          const canvas = cosmosEl.querySelector('canvas');
+          if (canvas) canvas.remove();
+          renderer = null;
+        }
+        if (finalScene) {
+          finalScene.clear();
+          finalScene = null;
+        }
+        if (finalRenderer) {
+          const container = document.querySelector(".final-center");
+          if (container) container.innerHTML = "";
+          finalRenderer = null;
+        }
+        
+        particles = null;
+        finalParticles = null;
+        
+        // ✅ 4. 清空 Firebase 資料
         await set(ref(db, "session"), null);
-        
-        // ✅ 清空 control,避免重複觸發
         await set(ref(db, "control"), null);
         
-        controlProcessing = false;
+        // ✅ 5. 延遲切換到 IDLE (給清理時間)
+        setTimeout(async () => {
+          await set(ref(db, "runtime/state"), STATES.IDLE);
+          console.log("✅ RESET 完成");
+          controlProcessing = false;
+        }, 300);
       }
     });
 
@@ -1174,11 +1229,28 @@
       }
 
       else if (state === STATES.COSMOS) {
+        console.log("🌌 進入 COSMOS 狀態");
+        
         stopFinalCharacter();
         stopCamera();
         
         // ✅ 先停止舊的手勢追蹤
         stopCosmosHandTracking();
+        
+        // ✅ 清理舊場景
+        if (scene) {
+          scene.clear();
+        }
+        if (renderer) {
+          const cosmosEl = document.getElementById("cosmos");
+          const canvas = cosmosEl.querySelector('canvas');
+          if (canvas) canvas.remove();
+        }
+        
+        // ✅ 重置變數
+        scene = null;
+        renderer = null;
+        particles = null;
         
         initCosmos();
 
@@ -1205,8 +1277,9 @@
 
         // ✅ 延遲啟動手勢追蹤,確保畫面已完成
         setTimeout(() => {
+          console.log("📷 啟動手勢追蹤");
           startCosmosHandTracking();
-        }, 500);
+        }, 800); // ✅ 增加到 800ms
 
         if (scene && !rafId) startAnimateLoop();
       }
