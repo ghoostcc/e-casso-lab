@@ -1060,6 +1060,58 @@
     }
 
     /* ================= Firebase 狀態 ================= */
+    
+    // ✅ 監聽 control 指令(從手機控制)
+    onValue(ref(db, "control"), async (snapshot) => {
+      const control = snapshot.val();
+      if (!control || !control.action) return;
+
+      console.log("收到控制指令:", control);
+
+      if (control.action === "START" && control.code) {
+        // 1. 先從 GAS 載入資料
+        try {
+          const res = await fetch(
+            "https://script.google.com/macros/s/AKfycbySLmfh1u_jqJ3jMXMhu8QTb40of6DPInwxEEYL3-JkvHY1Mel5ViMvVoNeJkBElaJ1Ng/exec?code=" + control.code
+          );
+          const data = await res.json();
+
+          if (data && data.id) {
+            // 寫入 session
+            await set(ref(db, "session"), {
+              id: data.id,
+              name: data.name,
+              color: data.color,
+              title: data.title,
+              conclusion: data.conclusion
+            });
+            console.log("✅ Session 資料已載入:", data);
+          }
+        } catch (err) {
+          console.error("❌ 載入 Session 失敗:", err);
+        }
+
+        // 2. 切換到 LOADING
+        await set(ref(db, "runtime/state"), STATES.LOADING);
+
+        // 3. 延遲後進入 COSMOS
+        setTimeout(() => {
+          set(ref(db, "runtime/state"), STATES.COSMOS);
+        }, 2400);
+      }
+
+      else if (control.action === "FINAL") {
+        set(ref(db, "runtime/state"), STATES.FINAL);
+      }
+
+      else if (control.action === "RESET") {
+        set(ref(db, "runtime/state"), STATES.IDLE);
+        // 清空 session
+        await set(ref(db, "session"), null);
+      }
+    });
+
+    // ✅ 監聽 runtime/state
     onValue(ref(db,"runtime/state"), s=>{
       const state = s.val();
       document.getElementById("debug").textContent = `state: ${state}`;
@@ -1127,7 +1179,6 @@
           rafId = null;
         }
 
-        // ✅ 只呼叫一次
         initFinalCharacter();
         startFinalCharacter();
         startDNA();
@@ -1139,13 +1190,15 @@
         onValue(sessionRef, (snapshot) => {
           const data = snapshot.val();
           
-          if (data && data.color && data.item && data.conclusion) {
+          console.log("📊 讀取 Session 資料:", data);
+          
+          if (data && data.color && data.title && data.conclusion) {
             // 更新顏色碼和圓點
             document.getElementById("final-color-code").textContent = data.color;
             document.getElementById("final-color-dot").style.backgroundColor = data.color;
             
-            // 更新項目名稱
-            document.getElementById("final-item").textContent = data.item;
+            // 更新項目名稱(使用 title)
+            document.getElementById("final-item").textContent = data.title;
             
             // 更新結論文字
             document.getElementById("final-text").textContent = data.conclusion;
@@ -1154,9 +1207,9 @@
             document.getElementById("final-color-code").textContent = "#66FFFF";
             document.getElementById("final-color-dot").style.backgroundColor = "#66FFFF";
             document.getElementById("final-item").textContent = "未知元素";
-            document.getElementById("final-text").textContent = "請先掃描並載入資料...";
+            document.getElementById("final-text").textContent = "請先從控制面板載入資料...";
           }
-        }, { onlyOnce: true }); // 只讀一次
+        }, { onlyOnce: true });
       }
     });
 
@@ -1187,6 +1240,7 @@
     console.log("Three.js 版本:", THREE.REVISION);
     console.log("初始狀態:", STATES.IDLE);
 
+    // ✅ 測試函數(可在 Console 手動呼叫)
     async function testLoadSession(id) {
       const res = await fetch(
         "https://script.google.com/macros/s/AKfycbySLmfh1u_jqJ3jMXMhu8QTb40of6DPInwxEEYL3-JkvHY1Mel5ViMvVoNeJkBElaJ1Ng/exec?code=" + id
@@ -1196,22 +1250,21 @@
       console.log("GAS data:", data);
 
       if (data && data.id) {
-        // ✅ 寫入 Firebase session
         await set(ref(db, "session"), {
           id: data.id,
           name: data.name,
           color: data.color,
-          item: data.item,
+          title: data.title,
           conclusion: data.conclusion
         });
         console.log("✅ Session 資料已寫入 Firebase:", data);
+        
+        // 自動切到 FINAL
+        await set(ref(db, "runtime/state"), STATES.FINAL);
       }
     }
 
     window.testLoadSession = testLoadSession;
-
-    // ✅ 測試用:直接載入 308-6 的資料
-    // testLoadSession("308-6");
 
   </script>
 </body>
