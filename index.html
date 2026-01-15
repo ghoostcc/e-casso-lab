@@ -139,6 +139,54 @@
       color: #7ffcff;
     }
 
+    /* ✅ 手勢準備通知 */
+    #gesture-ready {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 15;
+      padding: 30px 50px;
+      background: rgba(0, 0, 0, 0.9);
+      border: 3px solid #7ffcff;
+      font-size: 28px;
+      color: #7ffcff;
+      font-family: monospace;
+      text-align: center;
+      box-shadow: 0 0 30px rgba(127, 252, 255, 0.5);
+      display: none;
+      animation: pulse 1s ease-in-out;
+    }
+
+    #gesture-ready.show {
+      display: block;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.05); }
+    }
+
+    #gesture-status {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ff0000;
+      margin-right: 8px;
+      animation: blink 1s infinite;
+    }
+
+    #gesture-status.ready {
+      background: #00ff00;
+      animation: none;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0.3; }
+    }
+
     #cosmos-camera {
       position: fixed;
       bottom: 10px;
@@ -323,11 +371,16 @@
   <!-- COSMOS -->
   <div id="cosmos" class="screen">
     <div id="cosmos-hud">
-      <div>手勢: <span id="gesture" class="hud-value">等待中...</span></div>
+      <div><span id="gesture-status"></span>手勢: <span id="gesture" class="hud-value">等待中...</span></div>
       <div>手指數: <span id="fingers" class="hud-value">0</span></div>
       <div>模式: <span id="mode" class="hud-value">角色顯示</span></div>
     </div>
     <video id="cosmos-camera" autoplay muted playsinline></video>
+    <!-- ✅ 手勢準備通知 -->
+    <div id="gesture-ready">
+      <div>✓ 手勢偵測準備完成</div>
+      <div style="font-size: 18px; margin-top: 10px;">請張開手掌開始</div>
+    </div>
   </div>
 
   <!-- FINAL -->
@@ -539,10 +592,21 @@
         return;
       }
       
+      console.log("📷 開始初始化手勢追蹤...");
+      
+      // ✅ 更新狀態指示燈為載入中
+      const statusDot = document.getElementById('gesture-status');
+      if (statusDot) {
+        statusDot.style.background = '#ffaa00';
+        statusDot.style.animation = 'blink 0.5s infinite';
+      }
+      
       navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => {
           cosmosHandStream = stream;
           videoElement.srcObject = stream;
+          
+          console.log("📷 攝影機已啟動");
         })
         .catch(err => {
           console.warn("COSMOS 手勢攝影機錯誤:", err);
@@ -569,8 +633,28 @@
         height: 480
       });
       
-      cosmosCamera.start();
-      console.log("✅ COSMOS 手勢追蹤已啟動");
+      cosmosCamera.start().then(() => {
+        console.log("✅ COSMOS 手勢追蹤已完全啟動");
+        
+        // ✅ 更新狀態指示燈為就緒
+        const statusDot = document.getElementById('gesture-status');
+        if (statusDot) {
+          statusDot.classList.add('ready');
+          statusDot.style.background = '#00ff00';
+          statusDot.style.animation = 'none';
+        }
+        
+        // ✅ 顯示準備完成通知
+        const readyNotif = document.getElementById('gesture-ready');
+        if (readyNotif) {
+          readyNotif.classList.add('show');
+          
+          // 2秒後自動隱藏
+          setTimeout(() => {
+            readyNotif.classList.remove('show');
+          }, 2000);
+        }
+      });
     }
 
     function stopCosmosHandTracking() {
@@ -586,6 +670,21 @@
       handData = null;
       const videoElement = document.getElementById('cosmos-camera');
       if (videoElement) videoElement.srcObject = null;
+      
+      // ✅ 重置狀態指示燈
+      const statusDot = document.getElementById('gesture-status');
+      if (statusDot) {
+        statusDot.classList.remove('ready');
+        statusDot.style.background = '#ff0000';
+        statusDot.style.animation = 'blink 1s infinite';
+      }
+      
+      // ✅ 隱藏準備通知
+      const readyNotif = document.getElementById('gesture-ready');
+      if (readyNotif) {
+        readyNotif.classList.remove('show');
+      }
+      
       console.log("❌ COSMOS 手勢追蹤已停止");
     }
 
