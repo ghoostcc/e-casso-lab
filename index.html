@@ -139,34 +139,6 @@
       color: #7ffcff;
     }
 
-    /* ✅ 手勢準備通知 */
-    #gesture-ready {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      z-index: 15;
-      padding: 30px 50px;
-      background: rgba(0, 0, 0, 0.9);
-      border: 3px solid #7ffcff;
-      font-size: 28px;
-      color: #7ffcff;
-      font-family: monospace;
-      text-align: center;
-      box-shadow: 0 0 30px rgba(127, 252, 255, 0.5);
-      display: none;
-      animation: pulse 1s ease-in-out;
-    }
-
-    #gesture-ready.show {
-      display: block;
-    }
-
-    @keyframes pulse {
-      0%, 100% { transform: translate(-50%, -50%) scale(1); }
-      50% { transform: translate(-50%, -50%) scale(1.05); }
-    }
-
     #gesture-status {
       display: inline-block;
       width: 12px;
@@ -376,11 +348,6 @@
       <div>模式: <span id="mode" class="hud-value">角色顯示</span></div>
     </div>
     <video id="cosmos-camera" autoplay muted playsinline></video>
-    <!-- ✅ 手勢準備通知 -->
-    <div id="gesture-ready">
-      <div>✓ 手勢偵測準備完成</div>
-      <div style="font-size: 18px; margin-top: 10px;">請張開手掌開始</div>
-    </div>
   </div>
 
   <!-- FINAL -->
@@ -494,7 +461,22 @@
       return count;
     }
 
+    let handDetectionActive = false; // ✅ 追蹤是否真的在偵測
+
     function onHandResults(results) {
+      // ✅ 只要收到結果就代表真的在運作
+      if (!handDetectionActive) {
+        handDetectionActive = true;
+        console.log("✅✅✅ 手勢偵測實際開始運作!");
+        
+        const statusDot = document.getElementById('gesture-status');
+        if (statusDot) {
+          statusDot.classList.add('ready');
+          statusDot.style.background = '#00ff00';
+          statusDot.style.animation = 'none';
+        }
+      }
+      
       handData = null;
       
       if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
@@ -506,21 +488,18 @@
         
         // ✅ 狀態機邏輯
         if (gestureState === "WAITING") {
-          // 第一階段：等待用戶張開手掌
           if (fingerCount === 5) {
             gestureState = "ACTIVATED";
             document.getElementById('gesture').innerText = '✓ 偵測成功';
             document.getElementById('mode').innerText = '請握拳顯示角色';
-            // 維持分散狀態
             morphStrength = 0;
           } else {
             document.getElementById('gesture').innerText = '請張開手掌';
             document.getElementById('mode').innerText = '(5根手指啟動)';
-            morphStrength = 0; // 保持分散
+            morphStrength = 0;
           }
         } 
         else if (gestureState === "ACTIVATED") {
-          // 第二階段：已啟動,可以自由控制
           if (fingerCount === 5) {
             document.getElementById('gesture').innerText = '張開手掌';
             document.getElementById('mode').innerText = '粒子分散';
@@ -535,13 +514,12 @@
           }
         }
       } else {
-        // 沒偵測到手
         document.getElementById('fingers').innerText = '0';
         
         if (gestureState === "WAITING") {
           document.getElementById('gesture').innerText = '請張開手掌';
           document.getElementById('mode').innerText = '(5根手指啟動)';
-          morphStrength = 0; // 保持分散
+          morphStrength = 0;
         } else {
           document.getElementById('gesture').innerText = '未偵測到手';
           document.getElementById('mode').innerText = '(維持當前狀態)';
@@ -583,7 +561,10 @@
     }
 
     function startCosmosHandTracking() {
-      if (cosmosHands) return;
+      if (cosmosHands) {
+        console.log("⚠️ 手勢追蹤已存在,先停止");
+        stopCosmosHandTracking();
+      }
       
       const videoElement = document.getElementById('cosmos-camera');
       
@@ -592,72 +573,79 @@
         return;
       }
       
-      console.log("📷 開始初始化手勢追蹤...");
+      console.log("📷 [1/4] 開始初始化手勢追蹤...");
+      handDetectionActive = false; // ✅ 重置標記
       
       // ✅ 更新狀態指示燈為載入中
       const statusDot = document.getElementById('gesture-status');
       if (statusDot) {
+        statusDot.classList.remove('ready');
         statusDot.style.background = '#ffaa00';
         statusDot.style.animation = 'blink 0.5s infinite';
       }
       
-      navigator.mediaDevices.getUserMedia({ video: true })
+      navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: 640, 
+          height: 480,
+          facingMode: "user"
+        } 
+      })
         .then(stream => {
           cosmosHandStream = stream;
           videoElement.srcObject = stream;
           
-          console.log("📷 攝影機已啟動");
+          console.log("📷 [2/4] 攝影機已啟動");
+          
+          // ✅ 等待 video 真的開始播放
+          return new Promise((resolve) => {
+            videoElement.onloadedmetadata = () => {
+              videoElement.play();
+              console.log("📷 [3/4] 影片開始播放");
+              resolve();
+            };
+          });
+        })
+        .then(() => {
+          // ✅ 初始化 MediaPipe Hands
+          cosmosHands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+          });
+          
+          cosmosHands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.7
+          });
+          
+          cosmosHands.onResults(onHandResults);
+          
+          console.log("📷 [4/4] 啟動 MediaPipe Camera...");
+          
+          cosmosCamera = new Camera(videoElement, {
+            onFrame: async () => {
+              if (cosmosHands) {
+                await cosmosHands.send({ image: videoElement });
+              }
+            },
+            width: 640,
+            height: 480
+          });
+          
+          cosmosCamera.start();
+          console.log("✅ Camera.start() 已呼叫,等待實際偵測...");
         })
         .catch(err => {
-          console.warn("COSMOS 手勢攝影機錯誤:", err);
+          console.error("❌ 手勢追蹤初始化失敗:", err);
         });
-      
-      cosmosHands = new Hands({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-      });
-      
-      cosmosHands.setOptions({
-        maxNumHands: 1,
-        modelComplexity: 1,
-        minDetectionConfidence: 0.7,
-        minTrackingConfidence: 0.7
-      });
-      
-      cosmosHands.onResults(onHandResults);
-      
-      cosmosCamera = new Camera(videoElement, {
-        onFrame: async () => {
-          await cosmosHands.send({ image: videoElement });
-        },
-        width: 640,
-        height: 480
-      });
-      
-      cosmosCamera.start().then(() => {
-        console.log("✅ COSMOS 手勢追蹤已完全啟動");
-        
-        // ✅ 更新狀態指示燈為就緒
-        const statusDot = document.getElementById('gesture-status');
-        if (statusDot) {
-          statusDot.classList.add('ready');
-          statusDot.style.background = '#00ff00';
-          statusDot.style.animation = 'none';
-        }
-        
-        // ✅ 顯示準備完成通知
-        const readyNotif = document.getElementById('gesture-ready');
-        if (readyNotif) {
-          readyNotif.classList.add('show');
-          
-          // 2秒後自動隱藏
-          setTimeout(() => {
-            readyNotif.classList.remove('show');
-          }, 2000);
-        }
-      });
     }
 
     function stopCosmosHandTracking() {
+      console.log("🛑 停止手勢追蹤...");
+      
+      handDetectionActive = false;
+      
       if (cosmosHandStream) {
         cosmosHandStream.getTracks().forEach(t => t.stop());
         cosmosHandStream = null;
@@ -669,7 +657,10 @@
       cosmosHands = null;
       handData = null;
       const videoElement = document.getElementById('cosmos-camera');
-      if (videoElement) videoElement.srcObject = null;
+      if (videoElement) {
+        videoElement.srcObject = null;
+        videoElement.onloadedmetadata = null;
+      }
       
       // ✅ 重置狀態指示燈
       const statusDot = document.getElementById('gesture-status');
@@ -679,13 +670,7 @@
         statusDot.style.animation = 'blink 1s infinite';
       }
       
-      // ✅ 隱藏準備通知
-      const readyNotif = document.getElementById('gesture-ready');
-      if (readyNotif) {
-        readyNotif.classList.remove('show');
-      }
-      
-      console.log("❌ COSMOS 手勢追蹤已停止");
+      console.log("❌ 手勢追蹤已完全停止");
     }
 
     /* ================= COSMOS 初始化 ================= */
@@ -1376,9 +1361,9 @@
 
         // ✅ 延遲啟動手勢追蹤,確保畫面已完成
         setTimeout(() => {
-          console.log("📷 啟動手勢追蹤");
+          console.log("⏰ 開始啟動手勢追蹤 (延遲1秒)");
           startCosmosHandTracking();
-        }, 800); // ✅ 增加到 800ms
+        }, 1000); // ✅ 增加到 1000ms
 
         if (scene && !rafId) startAnimateLoop();
       }
